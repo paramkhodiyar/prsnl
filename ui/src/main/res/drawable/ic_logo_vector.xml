@@ -1,51 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
+    android:width="512dp"
+    android:height="512dp"
     android:viewportWidth="512"
     android:viewportHeight="512">
 
-    <!-- Deep Black Premium Tile Background (Soft Corners) -->
+    <!-- Deep Black Rounded Tile Background -->
     <path
-        android:fillColor="#09090B"
-        android:pathData="M144,32 h224 a112,112 0 0 1 112,112 v224 a112,112 0 0 1 -112,112 h-224 a112,112 0 0 1 -112,-112 v-224 a112,112 0 0 1 112,-112 Z" />
+        android:pathData="M108,0 L404,0 Q512,0 512,108 L512,404 Q512,512 404,512 L108,512 Q0,512 0,404 L0,108 Q0,0 108,0 Z"
+        android:fillColor="#09090B" />
 
-    <!-- Outer Fine Border Frame -->
+    <!-- === HARDCOVER NOTEBOOK / DIARY === -->
+    <!-- Diary Cover Frame -->
     <path
-        android:strokeColor="#27272A"
-        android:strokeWidth="4"
-        android:pathData="M144,32 h224 a112,112 0 0 1 112,112 v224 a112,112 0 0 1 -112,112 h-224 a112,112 0 0 1 -112,-112 v-224 a112,112 0 0 1 112,-112 Z" />
-
-    <!-- Futuristic Notebook Frame (White Line Art) -->
-    <path
+        android:pathData="M138,110 L342,110 Q370,110 370,138 L370,392 Q370,420 342,420 L138,420 Q110,420 110,392 L110,138 Q110,110 138,110 Z"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="20"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M172,128 h168 a36,36 0 0 1 36,36 v200 a36,36 0 0 1 -36,36 h-168 a36,36 0 0 1 -36,-36 v-200 a36,36 0 0 1 36,-36 Z" />
+        android:strokeWidth="16" />
 
-    <!-- Notebook Spine Accent Line -->
+    <!-- Diary Spine -->
     <path
+        android:pathData="M160,110 L160,420"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="12"
-        android:strokeLineCap="round"
-        android:pathData="M188,128 v272" />
-
-    <!-- Futuristic Pen Nib Shape -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M376,112 L288,200 C264,224 248,240 232,272 C228,280 224,296 224,296 C224,296 240,292 248,288 C280,272 296,256 320,232 L408,144 Z" />
-
-    <!-- Laser Nib Center Slit -->
-    <path
-        android:strokeColor="#09090B"
         android:strokeWidth="8"
-        android:strokeLineCap="round"
-        android:pathData="M224,296 L280,240" />
+        android:strokeAlpha="0.3" />
 
-    <!-- Minimalist Ink Flow Curve -->
+    <!-- Diary Bookmark Ribbon -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="16"
-        android:strokeLineCap="round"
-        android:pathData="M216,336 C244,354 284,356 320,344" />
+        android:pathData="M310,110 L310,240 L322,226 L334,240 L334,110 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.85" />
+
+    <!-- Ruled Page Lines -->
+    <path android:pathData="M184,200 L280,200" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
+    <path android:pathData="M184,240 L280,240" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
+    <path android:pathData="M184,280 L330,280" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
+    <path android:pathData="M184,320 L330,320" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
+    <path android:pathData="M184,360 L330,360" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
+
+    <!-- === MODERN MINIMALIST IPAD STYLUS === -->
+    <!-- Stylus Conical Tip -->
+    <path
+        android:pathData="M100,400 L132,352 L152,372 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Fine Tip Point -->
+    <path
+        android:pathData="M98,402 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Stylus Metallic Accent Ring -->
+    <path
+        android:pathData="M132,352 L152,372 L160,364 L140,344 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.6" />
+
+    <!-- Stylus Body -->
+    <path
+        android:pathData="M140,344 L160,364 L366,158 L346,138 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Stylus Flat Side Accent -->
+    <path
+        android:pathData="M152,340 L350,142"
+        android:strokeColor="#09090B"
+        android:strokeWidth="3"
+        android:strokeAlpha="0.35" />
+
+    <!-- Stylus Top Charging Ring Accent -->
+    <path
+        android:pathData="M346,138 L366,158 L376,148 L356,128 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.6" />
+
+    <!-- Stylus Flat Cap Top -->
+    <path
+        android:pathData="M356,128 L376,148 L392,132 L372,112 Z"
+        android:fillColor="#FFFFFF" />
+
 </vector>
