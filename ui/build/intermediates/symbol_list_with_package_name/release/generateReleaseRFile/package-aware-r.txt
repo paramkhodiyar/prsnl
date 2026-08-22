@@ -1,3 +1,0 @@
-com.prsnl.ui
-drawable ic_logo
-drawable ic_logo_vector

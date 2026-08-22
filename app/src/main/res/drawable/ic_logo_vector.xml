@@ -1,51 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
+    android:width="512dp"
+    android:height="512dp"
     android:viewportWidth="512"
     android:viewportHeight="512">
 
-    <!-- Deep Black Premium Tile Background (Soft Corners) -->
+    <!-- Deep black rounded background -->
     <path
-        android:fillColor="#09090B"
-        android:pathData="M144,32 h224 a112,112 0 0 1 112,112 v224 a112,112 0 0 1 -112,112 h-224 a112,112 0 0 1 -112,-112 v-224 a112,112 0 0 1 112,-112 Z" />
+        android:pathData="M108,0 L404,0 Q512,0 512,108 L512,404 Q512,512 404,512 L108,512 Q0,512 0,404 L0,108 Q0,0 108,0 Z"
+        android:fillColor="#09090B" />
 
-    <!-- Outer Fine Border Frame -->
+    <!-- Notebook page ghost outline (bottom-right) -->
     <path
-        android:strokeColor="#27272A"
-        android:strokeWidth="4"
-        android:pathData="M144,32 h224 a112,112 0 0 1 112,112 v224 a112,112 0 0 1 -112,112 h-224 a112,112 0 0 1 -112,-112 v-224 a112,112 0 0 1 112,-112 Z" />
-
-    <!-- Futuristic Notebook Frame (White Line Art) -->
-    <path
+        android:pathData="M250,230 L410,230 Q430,230 430,250 L430,440 Q430,460 410,460 L250,460 Q230,460 230,440 L230,250 Q230,230 250,230 Z"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="20"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M172,128 h168 a36,36 0 0 1 36,36 v200 a36,36 0 0 1 -36,36 h-168 a36,36 0 0 1 -36,-36 v-200 a36,36 0 0 1 36,-36 Z" />
+        android:strokeWidth="13"
+        android:strokeAlpha="0.18" />
 
-    <!-- Notebook Spine Accent Line -->
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="12"
-        android:strokeLineCap="round"
-        android:pathData="M188,128 v272" />
+    <!-- Notebook ruled lines -->
+    <path android:pathData="M258,278 L402,278" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.10" android:strokeLineCap="round"/>
+    <path android:pathData="M258,308 L402,308" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.10" android:strokeLineCap="round"/>
+    <path android:pathData="M258,338 L402,338" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.10" android:strokeLineCap="round"/>
 
-    <!-- Futuristic Pen Nib Shape -->
+    <!-- NIB — sharp triangular tip at bottom-left -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M376,112 L288,200 C264,224 248,240 232,272 C228,280 224,296 224,296 C224,296 240,292 248,288 C280,272 296,256 320,232 L408,144 Z" />
+        android:pathData="M118,394 L152,360 L164,372 Z"
+        android:fillColor="#FFFFFF" />
 
-    <!-- Laser Nib Center Slit -->
+    <!-- NIB split line -->
     <path
+        android:pathData="M118,394 L148,364"
         android:strokeColor="#09090B"
-        android:strokeWidth="8"
+        android:strokeWidth="3.5"
         android:strokeLineCap="round"
-        android:pathData="M224,296 L280,240" />
+        android:strokeAlpha="0.7" />
 
-    <!-- Minimalist Ink Flow Curve -->
+    <!-- GRIP SECTION — narrow section connecting nib to barrel -->
     <path
+        android:pathData="M152,360 L164,372 L198,338 L186,326 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Grip texture marks -->
+    <path android:pathData="M164,360 L176,348" android:strokeColor="#09090B" android:strokeWidth="3" android:strokeLineCap="round" android:strokeAlpha="0.4"/>
+    <path android:pathData="M174,350 L186,338" android:strokeColor="#09090B" android:strokeWidth="3" android:strokeLineCap="round" android:strokeAlpha="0.4"/>
+    <path android:pathData="M184,340 L196,328" android:strokeColor="#09090B" android:strokeWidth="3" android:strokeLineCap="round" android:strokeAlpha="0.4"/>
+
+    <!-- BARREL — main body diagonal -->
+    <path
+        android:pathData="M192,332 L204,320 L348,176 L336,164 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- SHOULDER STEP — widening band between barrel and cap -->
+    <path
+        android:pathData="M336,164 L348,176 L362,162 L350,150 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- CAP BODY -->
+    <path
+        android:pathData="M350,152 L362,140 L396,106 L384,94 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- CAP END PIECE -->
+    <path
+        android:pathData="M384,94 L392,86 L404,98 L396,106 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- CLIP strip -->
+    <path
+        android:pathData="M362,140 L400,100"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="16"
+        android:strokeWidth="6"
         android:strokeLineCap="round"
-        android:pathData="M216,336 C244,354 284,356 320,344" />
+        android:strokeAlpha="0.55" />
+
+    <!-- Clip end button -->
+    <path
+        android:pathData="M404,97 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.55" />
+
 </vector>

@@ -291,7 +291,15 @@ fun PageEditorScreen(
                                                     viewModel.executeCommand(index, command)
                                                 }
                                                 this.onAutoStylusSwitch = {
-                                                    viewModel.setToolMode(CanvasToolMode.PEN)
+                                                    // Only auto-switch to PEN when already in an ink tool.
+                                                    // NEVER override eraser, select, lasso, shape, or text tools.
+                                                    val current = viewModel.toolMode.value
+                                                    val isInkTool = current == CanvasToolMode.PEN ||
+                                                        current == CanvasToolMode.PENCIL ||
+                                                        current == CanvasToolMode.HIGHLIGHTER
+                                                    if (isInkTool) {
+                                                        viewModel.setToolMode(CanvasToolMode.PEN)
+                                                    }
                                                 }
                                                 this.onInsertTextBoxRequested = { x, y ->
                                                     pendingTextInsertPos = Pair(x, y)

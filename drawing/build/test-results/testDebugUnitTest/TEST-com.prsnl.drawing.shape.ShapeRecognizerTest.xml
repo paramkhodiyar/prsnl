@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.prsnl.drawing.shape.ShapeRecognizerTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-22T23:36:08.186Z" hostname="Params-MacBook-Pro.local" time="0.001">
-  <properties/>
-  <testcase name="testMessyScribbleRejection" classname="com.prsnl.drawing.shape.ShapeRecognizerTest" time="0.0"/>
-  <testcase name="testRecognizeCircle" classname="com.prsnl.drawing.shape.ShapeRecognizerTest" time="0.001"/>
-  <testcase name="testRecognizeStraightLine" classname="com.prsnl.drawing.shape.ShapeRecognizerTest" time="0.0"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

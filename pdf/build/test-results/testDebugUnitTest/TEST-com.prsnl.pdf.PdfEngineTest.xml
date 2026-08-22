@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.prsnl.pdf.PdfEngineTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-08-22T23:38:48.616Z" hostname="Params-MacBook-Pro.local" time="0.053">
-  <properties/>
-  <testcase name="testPdfExporterGeneratesValidPdfFile" classname="com.prsnl.pdf.PdfEngineTest" time="0.051"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

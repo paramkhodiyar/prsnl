@@ -1,2 +1,0 @@
-int drawable ic_logo 0x0
-int drawable ic_logo_vector 0x0

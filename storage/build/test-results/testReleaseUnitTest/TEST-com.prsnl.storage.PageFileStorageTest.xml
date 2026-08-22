@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.prsnl.storage.PageFileStorageTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-08-22T23:33:05.508Z" hostname="Params-MacBook-Pro.local" time="0.135">
-  <properties/>
-  <testcase name="testSaveAndLoadPageElements" classname="com.prsnl.storage.PageFileStorageTest" time="0.132"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

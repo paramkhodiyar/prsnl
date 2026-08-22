@@ -92,10 +92,18 @@ class DrawingCanvasView @JvmOverloads constructor(
     private val lassoPoints = mutableListOf<StrokePoint>()
     private val lassoPath = Path()
     private var dashPhase = 0f
+    // All elements selected by lasso (rendered with marching ants)
+    private val lassoSelectedElements = mutableListOf<Element>()
 
-    // Transform State
+    // Transform State for SELECT mode
     private var isDraggingTopRotationHandle = false
     private var initialRotationAngle = 0f
+    private var isDraggingSelectedElement = false
+    private var isDraggingCornerHandle = false
+    private var draggingCornerIndex = -1   // 0=TL, 1=TR, 2=BL, 3=BR
+    private var selectedElement: Element? = null
+    private var selectDragLastX = 0f
+    private var selectDragLastY = 0f
 
     var committedElements: List<Element>
         get() = synchronized(localElementsList) { localElementsList.toList() }
@@ -226,24 +234,19 @@ class DrawingCanvasView @JvmOverloads constructor(
                 )
                 newActiveStroke.addPoint(firstPoint)
                 activeStroke = newActiveStroke
-                scheduleHoldToRecognizeTimer()
+                // NOTE: hold-to-recognize timer is ONLY for SHAPE_PICKER mode.
+                // Never fire it during freehand PEN/PENCIL/HIGHLIGHTER drawing.
                 invalidate()
             }
 
             MotionEvent.ACTION_MOVE -> {
                 val current = activeStroke ?: return
                 val p = extractPointSafely(event, safeIndex, strokeStartTimeMs) ?: return
-                val dx = p.x - lastPointX
-                val dy = p.y - lastPointY
-                if (hypot(dx, dy) > 1.2f) {
-                    cancelHoldToRecognizeTimer()
-                }
                 current.addPoint(p)
                 invalidate()
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
-                cancelHoldToRecognizeTimer()
                 inputFilter.onPointerUpOrCancel(event, safeIndex)
                 val current = activeStroke
                 if (current != null) {
@@ -266,7 +269,6 @@ class DrawingCanvasView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_CANCEL -> {
-                cancelHoldToRecognizeTimer()
                 inputFilter.onPointerUpOrCancel(event, safeIndex)
                 activeStroke = null
                 invalidate()
@@ -274,7 +276,8 @@ class DrawingCanvasView @JvmOverloads constructor(
         }
     }
 
-    private fun scheduleHoldToRecognizeTimer() {
+    // Hold-to-recognize: ONLY used from SHAPE_PICKER mode, never from PEN/PENCIL/HIGHLIGHTER.
+    private fun scheduleShapePickerHoldRecognize() {
         cancelHoldToRecognizeTimer()
         val runnable = Runnable {
             val current = activeStroke ?: return@Runnable
@@ -308,7 +311,7 @@ class DrawingCanvasView @JvmOverloads constructor(
             }
         }
         holdToRecognizeRunnable = runnable
-        handler?.postDelayed(runnable, 400L)
+        handler?.postDelayed(runnable, 600L)
     }
 
     private fun cancelHoldToRecognizeTimer() {
@@ -324,6 +327,7 @@ class DrawingCanvasView @JvmOverloads constructor(
         val p = extractPointSafely(event, safeIndex, strokeStartTimeMs) ?: return
         when (action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                strokeStartTimeMs = System.currentTimeMillis()
                 shapeStartX = p.x
                 shapeStartY = p.y
                 val snapshot = synchronized(localElementsList) { localElementsList.toList() }
@@ -340,6 +344,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                 invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
+                cancelHoldToRecognizeTimer()  // Cancel if user drags
                 val current = activeShape
                 if (current != null) {
                     val minX = minOf(shapeStartX, p.x)
@@ -353,6 +358,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                cancelHoldToRecognizeTimer()
                 val current = activeShape
                 if (current != null) {
                     val minX = minOf(shapeStartX, p.x)
@@ -378,6 +384,7 @@ class DrawingCanvasView @JvmOverloads constructor(
         when (action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 lassoPoints.clear()
+                lassoSelectedElements.clear()
                 lassoPoints.add(p)
                 lassoPath.reset()
                 lassoPath.moveTo(p.x, p.y)
@@ -392,7 +399,11 @@ class DrawingCanvasView @JvmOverloads constructor(
                 lassoPath.close()
                 val snapshot = synchronized(localElementsList) { localElementsList.toList() }
                 val selected = lassoEngine.findElementsInLasso(snapshot, lassoPoints)
-                if (selected.isNotEmpty()) {
+                lassoSelectedElements.clear()
+                lassoSelectedElements.addAll(selected)
+                // If exactly one element selected, also set it as the single SELECT target
+                if (selected.size == 1) {
+                    selectedElement = selected.first()
                     selectionHandler.selectAt(snapshot, selected.first().boundingBox.centerX, selected.first().boundingBox.centerY)
                 }
                 lassoPoints.clear()
@@ -412,51 +423,159 @@ class DrawingCanvasView @JvmOverloads constructor(
     private fun handleSelectTouch(event: MotionEvent, action: Int, safeIndex: Int) {
         val p = extractPointSafely(event, safeIndex, strokeStartTimeMs) ?: return
         val snapshot = synchronized(localElementsList) { localElementsList.toList() }
-        val selectedId = selectionHandler.selectedElementId
 
         when (action) {
             MotionEvent.ACTION_DOWN -> {
-                if (selectedId != null) {
-                    val selectedElement = snapshot.firstOrNull { it.id == selectedId }
-                    if (selectedElement != null) {
-                        val bounds = selectedElement.boundingBox
-                        val topRotateX = bounds.centerX
-                        val topRotateY = bounds.top - 40f
+                isDraggingTopRotationHandle = false
+                isDraggingSelectedElement = false
+                isDraggingCornerHandle = false
+                draggingCornerIndex = -1
 
-                        if (hypot(p.x - topRotateX, p.y - topRotateY) < 30f) {
-                            isDraggingTopRotationHandle = true
-                            initialRotationAngle = Math.toDegrees(atan2((p.y - bounds.centerY).toDouble(), (p.x - bounds.centerX).toDouble())).toFloat()
+                val prevSelected = selectedElement
+                if (prevSelected != null) {
+                    val bounds = prevSelected.boundingBox
+
+                    // Check top rotation handle
+                    val topRotateX = bounds.centerX
+                    val topRotateY = bounds.top - 40f
+                    if (hypot(p.x - topRotateX, p.y - topRotateY) < 30f) {
+                        isDraggingTopRotationHandle = true
+                        initialRotationAngle = Math.toDegrees(atan2(
+                            (p.y - bounds.centerY).toDouble(),
+                            (p.x - bounds.centerX).toDouble()
+                        )).toFloat()
+                        selectDragLastX = p.x
+                        selectDragLastY = p.y
+                        return
+                    }
+
+                    // Check corner scale handles
+                    val corners = listOf(
+                        Pair(bounds.left - 6f, bounds.top - 6f),    // TL = 0
+                        Pair(bounds.right + 6f, bounds.top - 6f),   // TR = 1
+                        Pair(bounds.left - 6f, bounds.bottom + 6f), // BL = 2
+                        Pair(bounds.right + 6f, bounds.bottom + 6f) // BR = 3
+                    )
+                    for ((i, corner) in corners.withIndex()) {
+                        if (hypot(p.x - corner.first, p.y - corner.second) < 28f) {
+                            isDraggingCornerHandle = true
+                            draggingCornerIndex = i
+                            selectDragLastX = p.x
+                            selectDragLastY = p.y
                             return
                         }
                     }
+
+                    // Check if inside bounding box to drag/move
+                    if (p.x >= bounds.left && p.x <= bounds.right && p.y >= bounds.top && p.y <= bounds.bottom) {
+                        isDraggingSelectedElement = true
+                        selectDragLastX = p.x
+                        selectDragLastY = p.y
+                        return
+                    }
                 }
-                isDraggingTopRotationHandle = false
+
+                // Tap outside or on new element — update selection
+                val hit = snapshot.lastOrNull { el ->
+                    p.x >= el.boundingBox.left && p.x <= el.boundingBox.right &&
+                    p.y >= el.boundingBox.top && p.y <= el.boundingBox.bottom
+                }
+                selectedElement = hit
                 selectionHandler.selectAt(snapshot, p.x, p.y)
+                selectDragLastX = p.x
+                selectDragLastY = p.y
                 invalidate()
             }
+
             MotionEvent.ACTION_MOVE -> {
-                if (isDraggingTopRotationHandle && selectedId != null) {
-                    val selectedElement = snapshot.firstOrNull { it.id == selectedId }
-                    if (selectedElement is Shape) {
-                        val currentAngle = Math.toDegrees(atan2((p.y - selectedElement.boundingBox.centerY).toDouble(), (p.x - selectedElement.boundingBox.centerX).toDouble())).toFloat()
-                        val delta = currentAngle - initialRotationAngle
-                        initialRotationAngle = currentAngle
-                        val cmd = selectionHandler.createRotateCommand(selectedElement, delta)
-                        if (cmd != null) {
-                            val updatedPage = cmd.apply(com.prsnl.document.model.Page("t", "t", 0, width.toFloat(), height.toFloat(), currentBackground, snapshot))
+                val current = selectedElement ?: return
+                val dx = p.x - selectDragLastX
+                val dy = p.y - selectDragLastY
+                selectDragLastX = p.x
+                selectDragLastY = p.y
+
+                when {
+                    isDraggingSelectedElement -> {
+                        // Move element by dx/dy
+                        val oldBox = current.boundingBox
+                        val newBox = RectData(oldBox.left + dx, oldBox.top + dy, oldBox.right + dx, oldBox.bottom + dy)
+                        val updated = updateElementBoundingBox(current, newBox)
+                        if (updated != null) {
                             synchronized(localElementsList) {
-                                localElementsList.clear()
-                                localElementsList.addAll(updatedPage.elements)
+                                val idx = localElementsList.indexOfFirst { it.id == current.id }
+                                if (idx >= 0) localElementsList[idx] = updated
                             }
-                            onCommandIssued?.invoke(cmd)
+                            selectedElement = updated
+                            onCommandIssued?.invoke(Command.MoveElement(current.id, oldBox, newBox))
                             invalidate()
+                        }
+                    }
+
+                    isDraggingCornerHandle -> {
+                        val oldBox = current.boundingBox
+                        val newBox = when (draggingCornerIndex) {
+                            0 -> RectData(oldBox.left + dx, oldBox.top + dy, oldBox.right, oldBox.bottom) // TL
+                            1 -> RectData(oldBox.left, oldBox.top + dy, oldBox.right + dx, oldBox.bottom) // TR
+                            2 -> RectData(oldBox.left + dx, oldBox.top, oldBox.right, oldBox.bottom + dy) // BL
+                            3 -> RectData(oldBox.left, oldBox.top, oldBox.right + dx, oldBox.bottom + dy) // BR
+                            else -> oldBox
+                        }
+                        // Prevent degenerate box
+                        val safeBox = if (newBox.right - newBox.left > 20f && newBox.bottom - newBox.top > 20f) newBox else oldBox
+                        val updated = updateElementBoundingBox(current, safeBox)
+                        if (updated != null) {
+                            synchronized(localElementsList) {
+                                val idx = localElementsList.indexOfFirst { it.id == current.id }
+                                if (idx >= 0) localElementsList[idx] = updated
+                            }
+                            selectedElement = updated
+                            onCommandIssued?.invoke(Command.ResizeElement(current.id, oldBox, safeBox))
+                            invalidate()
+                        }
+                    }
+
+                    isDraggingTopRotationHandle -> {
+                        if (current is Shape) {
+                            val currentAngle = Math.toDegrees(atan2(
+                                (p.y - current.boundingBox.centerY).toDouble(),
+                                (p.x - current.boundingBox.centerX).toDouble()
+                            )).toFloat()
+                            val delta = currentAngle - initialRotationAngle
+                            initialRotationAngle = currentAngle
+                            val cmd = selectionHandler.createRotateCommand(current, delta)
+                            if (cmd != null) {
+                                val updatedPage = cmd.apply(com.prsnl.document.model.Page(
+                                    "t", "t", 0, width.toFloat(), height.toFloat(), currentBackground, snapshot
+                                ))
+                                synchronized(localElementsList) {
+                                    localElementsList.clear()
+                                    localElementsList.addAll(updatedPage.elements)
+                                }
+                                onCommandIssued?.invoke(cmd)
+                                invalidate()
+                            }
                         }
                     }
                 }
             }
+
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 isDraggingTopRotationHandle = false
+                isDraggingSelectedElement = false
+                isDraggingCornerHandle = false
+                draggingCornerIndex = -1
             }
+        }
+    }
+
+    /** Returns a copy of [element] with its bounding box replaced by [newBox], for any element type. */
+    private fun updateElementBoundingBox(element: Element, newBox: RectData): Element? {
+        return when (element) {
+            is Shape -> element.copy(boundingBox = newBox)
+            is ImageElement -> element.copy(boundingBox = newBox)
+            is TextBox -> element.copy(boundingBox = newBox)
+            is Stroke -> element.copy(boundingBox = newBox)
+            else -> null
         }
     }
 
@@ -543,39 +662,42 @@ class DrawingCanvasView @JvmOverloads constructor(
                 canvas.drawPath(lassoPath, lassoPaint)
             }
 
-            // Render Selection Bounding Box with Animated Marching-Ants Border & Top Rotation Handle
-            val selectedId = selectionHandler.selectedElementId
-            if (selectedId != null) {
-                val selectedElement = elementsSnapshot.firstOrNull { it.id == selectedId }
-                if (selectedElement != null) {
-                    val box = selectedElement.boundingBox
-                    dashPhase = (dashPhase + 1.5f) % 32f
-                    selectionBoxPaint.pathEffect = DashPathEffect(floatArrayOf(16f, 12f), dashPhase)
+            // Render lasso multi-selection highlights
+            for (el in lassoSelectedElements) {
+                val b = el.boundingBox
+                canvas.drawRect(b.left - 4f, b.top - 4f, b.right + 4f, b.bottom + 4f, selectionBoxPaint)
+            }
 
-                    // Draw Marching Ants Dashed Border
-                    canvas.drawRect(box.left - 6f, box.top - 6f, box.right + 6f, box.bottom + 6f, selectionBoxPaint)
+            // Render Selection Bounding Box with Animated Marching-Ants Border & Handles
+            val sel = selectedElement
+            if (sel != null) {
+                val box = sel.boundingBox
+                dashPhase = (dashPhase + 1.5f) % 32f
+                selectionBoxPaint.pathEffect = DashPathEffect(floatArrayOf(16f, 12f), dashPhase)
 
-                    // Corner Scale Handles (White Circles with Sky-Blue outline)
-                    val handles = listOf(
-                        Pair(box.left - 6f, box.top - 6f),
-                        Pair(box.right + 6f, box.top - 6f),
-                        Pair(box.left - 6f, box.bottom + 6f),
-                        Pair(box.right + 6f, box.bottom + 6f)
-                    )
-                    for ((hx, hy) in handles) {
-                        canvas.drawCircle(hx, hy, 10f, handleFillPaint)
-                        canvas.drawCircle(hx, hy, 10f, handleStrokePaint)
-                    }
+                // Draw Marching Ants Dashed Border
+                canvas.drawRect(box.left - 6f, box.top - 6f, box.right + 6f, box.bottom + 6f, selectionBoxPaint)
 
-                    // Top Center Axis Rotation Handle
-                    val topRotateX = box.centerX
-                    val topRotateY = box.top - 40f
-                    canvas.drawLine(topRotateX, box.top - 6f, topRotateX, topRotateY, handleStrokePaint)
-                    canvas.drawCircle(topRotateX, topRotateY, 12f, handleFillPaint)
-                    canvas.drawCircle(topRotateX, topRotateY, 12f, handleStrokePaint)
-
-                    postInvalidateOnAnimation()
+                // Corner Scale Handles (White circles with Sky-Blue outline)
+                val handles = listOf(
+                    Pair(box.left - 6f, box.top - 6f),
+                    Pair(box.right + 6f, box.top - 6f),
+                    Pair(box.left - 6f, box.bottom + 6f),
+                    Pair(box.right + 6f, box.bottom + 6f)
+                )
+                for ((hx, hy) in handles) {
+                    canvas.drawCircle(hx, hy, 12f, handleFillPaint)
+                    canvas.drawCircle(hx, hy, 12f, handleStrokePaint)
                 }
+
+                // Top Center Axis Rotation Handle (line + circle)
+                val topRotateX = box.centerX
+                val topRotateY = box.top - 40f
+                canvas.drawLine(topRotateX, box.top - 6f, topRotateX, topRotateY, handleStrokePaint)
+                canvas.drawCircle(topRotateX, topRotateY, 14f, handleFillPaint)
+                canvas.drawCircle(topRotateX, topRotateY, 14f, handleStrokePaint)
+
+                postInvalidateOnAnimation()
             }
 
             canvas.restore()

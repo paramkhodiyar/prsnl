@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.prsnl.core.CoreSmokeTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-08-22T22:55:03.810Z" hostname="Params-MacBook-Pro.local" time="0.008">
-  <properties/>
-  <testcase name="testModuleInitialization" classname="com.prsnl.core.CoreSmokeTest" time="0.005"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

@@ -30,10 +30,14 @@ class InputFilter {
 
         // 1. Stylus or Digital Pen touch event detected -> 0ms Instant Lock
         if (toolType == MotionEvent.TOOL_TYPE_STYLUS || toolType == MotionEvent.TOOL_TYPE_ERASER) {
+            val wasAlreadyActive = isStylusActive
             isStylusActive = true
             activeStylusPointerId = pointerId
             lastStylusHoverTimeMs = currentTime
-            onStylusDetected?.invoke()
+            // Only fire the auto-switch callback once, on the FIRST detection (not on every touch).
+            if (!wasAlreadyActive) {
+                onStylusDetected?.invoke()
+            }
             return true
         }
 

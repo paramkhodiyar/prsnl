@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.prsnl.drawing.EraserEngineTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-08-22T23:36:21.261Z" hostname="Params-MacBook-Pro.local" time="0.01">
-  <properties/>
-  <testcase name="testStrokeEraserHit" classname="com.prsnl.drawing.EraserEngineTest" time="0.008"/>
-  <testcase name="testPixelEraserSplitsStrokeIntoTwoSegments" classname="com.prsnl.drawing.EraserEngineTest" time="0.001"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
