@@ -14,12 +14,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,55 +46,135 @@ import com.prsnl.document.model.Background
 @Composable
 fun NotebookSettingsModal(
     currentBackground: Background,
+    isFingerDrawingEnabled: Boolean,
+    isPressureSensitivityEnabled: Boolean,
     onDismiss: () -> Unit,
     onBackgroundTypeChange: (Background.Type) -> Unit,
     onLineSpacingChange: (Float) -> Unit,
-    onPaperColorChange: (Int) -> Unit
+    onPaperColorChange: (Int) -> Unit,
+    onFingerDrawingToggle: () -> Unit,
+    onPressureSensitivityToggle: () -> Unit
 ) {
     var selectedType by remember { mutableStateOf(currentBackground.type) }
     var lineSpacing by remember { mutableFloatStateOf(currentBackground.lineSpacing ?: 40f) }
     var selectedPaperColor by remember { mutableIntStateOf(currentBackground.colorLight) }
+    val scrollState = rememberScrollState()
 
-    val patternOptions = listOf(
+    val templateOptions = listOf(
+        Pair("Margin Ruled (Date & Red Line)", Background.Type.MARGIN_RULED),
         Pair("Ruled Lines", Background.Type.RULED),
-        Pair("Grid Pattern", Background.Type.GRID),
-        Pair("Dot Matrix", Background.Type.DOTTED),
-        Pair("Plain Blank", Background.Type.BLANK)
+        Pair("Square Grid Pattern", Background.Type.GRID),
+        Pair("Isometric 3D Grid", Background.Type.ISOMETRIC),
+        Pair("Dot Matrix Grid", Background.Type.DOTTED),
+        Pair("Cornell Notes Layout", Background.Type.CORNELL),
+        Pair("2-Column Layout", Background.Type.COLUMN_2),
+        Pair("Music Staves", Background.Type.MUSIC),
+        Pair("Plain Blank Paper", Background.Type.BLANK)
     )
 
     val paperColorSwatches = listOf(
-        Pair("Cream White", AndroidColor.parseColor("#FAF8F5")),
-        Pair("Pale Yellow", AndroidColor.parseColor("#FFF9E6")),
-        Pair("Pale Green", AndroidColor.parseColor("#EAF4EC")),
+        Pair("Warm Cream", AndroidColor.parseColor("#FAF8F5")),
+        Pair("Legal Yellow", AndroidColor.parseColor("#FFF9E6")),
+        Pair("Soft Mint", AndroidColor.parseColor("#EAF4EC")),
         Pair("Pastel Pink", AndroidColor.parseColor("#FCE4EC")),
+        Pair("Lavender", AndroidColor.parseColor("#F5F3FF")),
         Pair("Cool Gray", AndroidColor.parseColor("#F0F2F5")),
-        Pair("Charcoal", AndroidColor.parseColor("#1C1C1E"))
+        Pair("Charcoal", AndroidColor.parseColor("#1C1C1E")),
+        Pair("Pure White", AndroidColor.parseColor("#FFFFFF"))
     )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF2C2C2E),
-        titleContentColor = Color(0xFFF5F2EB),
-        title = { Text("Notebook Paper Settings", fontWeight = FontWeight.Bold) },
+        containerColor = Color(0xFFF5F0E6),
+        titleContentColor = Color(0xFF2D2B28),
+        textContentColor = Color(0xFF2D2B28),
+        title = { Text("Notebook & Page Formatting Settings", fontWeight = FontWeight.Bold) },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text("Paper Color Tint", style = MaterialTheme.typography.labelMedium, color = Color(0xFFA1A1AA))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+            ) {
+                // 1. Input Mode Toggles
+                Text("Touch & Input Control", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF5C5850))
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFEFE8DA))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Finger Writing / Drawing", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2D2B28))
+                        Text(
+                            if (isFingerDrawingEnabled) "Finger draws ink on canvas" else "Finger scrolls canvas (Stylus writing lock)",
+                            fontSize = 11.sp,
+                            color = Color(0xFF5C5850)
+                        )
+                    }
+                    Switch(
+                        checked = isFingerDrawingEnabled,
+                        onCheckedChange = { onFingerDrawingToggle() },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFFC88A4B)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFEFE8DA))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Pressure Sensitivity", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF2D2B28))
+                        Text(
+                            if (isPressureSensitivityEnabled) "Dynamic pressure stroke width enabled" else "Fixed width stroke rendering",
+                            fontSize = 11.sp,
+                            color = Color(0xFF5C5850)
+                        )
+                    }
+                    Switch(
+                        checked = isPressureSensitivityEnabled,
+                        onCheckedChange = { onPressureSensitivityToggle() },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFFC88A4B)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // 2. Paper Color Tint
+                Text("Paper Color Swatch", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF5C5850))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     paperColorSwatches.forEach { (name, colorInt) ->
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(32.dp)
                                 .clip(CircleShape)
                                 .background(Color(colorInt))
                                 .border(
                                     width = if (selectedPaperColor == colorInt) 3.dp else 1.dp,
-                                    color = if (selectedPaperColor == colorInt) Color(0xFFE0A96D) else Color.Gray,
+                                    color = if (selectedPaperColor == colorInt) Color(0xFFC88A4B) else Color(0xFFE2D7C5),
                                     shape = CircleShape
                                 )
                                 .clickable {
@@ -102,41 +187,43 @@ fun NotebookSettingsModal(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                Text("Paper Lining Pattern", style = MaterialTheme.typography.labelMedium, color = Color(0xFFA1A1AA))
+                // 3. Paper Lining Pattern Template
+                Text("Paper Template Layout", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF5C5850))
                 Spacer(modifier = Modifier.height(8.dp))
 
-                patternOptions.forEach { (label, type) ->
+                templateOptions.forEach { (label, type) ->
                     val isSelected = selectedType == type
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
+                            .padding(vertical = 3.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (isSelected) Color(0xFFE0A96D) else Color(0xFF1C1C1E))
-                            .border(1.dp, if (isSelected) Color(0xFFE0A96D) else Color(0xFF3A3A3C), RoundedCornerShape(10.dp))
+                            .background(if (isSelected) Color(0xFFC88A4B) else Color(0xFFEFE8DA))
+                            .border(1.dp, if (isSelected) Color(0xFFC88A4B) else Color(0xFFE2D7C5), RoundedCornerShape(10.dp))
                             .clickable {
                                 selectedType = type
                                 onBackgroundTypeChange(type)
                             }
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) Color(0xFF1C1C1E) else Color(0xFFF5F2EB),
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            color = if (isSelected) Color.White else Color(0xFF2D2B28),
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 13.sp
                         )
                     }
                 }
 
-                if (selectedType == Background.Type.RULED || selectedType == Background.Type.GRID) {
+                if (selectedType == Background.Type.RULED || selectedType == Background.Type.GRID || selectedType == Background.Type.MARGIN_RULED) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Line Height / Spacing Bar", style = MaterialTheme.typography.labelMedium, color = Color(0xFFA1A1AA))
-                        Text("${lineSpacing.toInt()} px", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE0A96D))
+                        Text("Line Spacing Height", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF5C5850))
+                        Text("${lineSpacing.toInt()} px", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC88A4B))
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
@@ -148,8 +235,8 @@ fun NotebookSettingsModal(
                         },
                         valueRange = 20f..90f,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFFE0A96D),
-                            activeTrackColor = Color(0xFFE0A96D)
+                            thumbColor = Color(0xFFC88A4B),
+                            activeTrackColor = Color(0xFFC88A4B)
                         )
                     )
                 }
@@ -157,7 +244,7 @@ fun NotebookSettingsModal(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done", color = Color(0xFFE0A96D), fontWeight = FontWeight.Bold)
+                Text("Save & Apply", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
             }
         }
     )

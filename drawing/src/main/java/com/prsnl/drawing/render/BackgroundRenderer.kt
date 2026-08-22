@@ -46,8 +46,10 @@ class BackgroundRenderer {
         textPaint.color = if (isDarkMode) 0x66FFFFFF else 0x66000000
 
         val spacing = (background.lineSpacing ?: 40f).coerceAtLeast(20f)
-        val maxX = maxOf(width * 4f, 4000f)
-        val maxY = maxOf(height * 4f, 5000f)
+        val minX = -20000f
+        val maxX = 20000f
+        val minY = -20000f
+        val maxY = 20000f
 
         when (background.type) {
             Background.Type.BLANK -> {
@@ -56,53 +58,52 @@ class BackgroundRenderer {
             Background.Type.RULED -> {
                 var y = spacing + 40f
                 while (y < maxY) {
-                    canvas.drawLine(-1000f, y, maxX, y, linePaint)
+                    canvas.drawLine(minX, y, maxX, y, linePaint)
                     y += spacing
                 }
             }
             Background.Type.MARGIN_RULED -> {
-                // Top header margin & bottom footer margin
                 val topMarginY = 120f
                 val bottomMarginY = height - 100f
 
-                canvas.drawLine(100f, -1000f, 100f, maxY, marginPaint) // Left red margin
-                canvas.drawLine(-1000f, topMarginY, maxX, topMarginY, linePaint)
-                canvas.drawLine(-1000f, bottomMarginY, maxX, bottomMarginY, linePaint)
+                canvas.drawLine(100f, minY, 100f, maxY, marginPaint) // Red Left Margin
+                canvas.drawLine(minX, topMarginY, maxX, topMarginY, linePaint)
+                canvas.drawLine(minX, bottomMarginY, maxX, bottomMarginY, linePaint)
 
-                // Date Box in Top Header Right
+                // Date Section Header
                 val dateText = "Date: ____ / ____ / 20__"
                 canvas.drawText(dateText, width - 260f, 80f, textPaint)
 
                 var y = topMarginY + spacing
                 while (y < bottomMarginY) {
-                    canvas.drawLine(-1000f, y, maxX, y, linePaint)
+                    canvas.drawLine(minX, y, maxX, y, linePaint)
                     y += spacing
                 }
             }
             Background.Type.GRID -> {
-                var x = -1000f
+                var x = minX
                 while (x < maxX) {
-                    canvas.drawLine(x, -1000f, x, maxY, linePaint)
+                    canvas.drawLine(x, minY, x, maxY, linePaint)
                     x += spacing
                 }
-                var y = -1000f
+                var y = minY
                 while (y < maxY) {
-                    canvas.drawLine(-1000f, y, maxX, y, linePaint)
+                    canvas.drawLine(minX, y, maxX, y, linePaint)
                     y += spacing
                 }
             }
             Background.Type.ISOMETRIC -> {
-                var x = -1000f
+                var x = minX
                 while (x < maxX) {
-                    canvas.drawLine(x, -1000f, x + 3000f, maxY, linePaint)
-                    canvas.drawLine(x, -1000f, x - 3000f, maxY, linePaint)
+                    canvas.drawLine(x, minY, x + 5000f, maxY, linePaint)
+                    canvas.drawLine(x, minY, x - 5000f, maxY, linePaint)
                     x += spacing * 1.5f
                 }
             }
             Background.Type.DOTTED -> {
-                var x = spacing
+                var x = minX
                 while (x < maxX) {
-                    var y = spacing
+                    var y = minY
                     while (y < maxY) {
                         canvas.drawCircle(x, y, 2.5f, dotPaint)
                         y += spacing
@@ -113,8 +114,8 @@ class BackgroundRenderer {
             Background.Type.CORNELL -> {
                 val cueX = 260f
                 val summaryY = height - 220f
-                canvas.drawLine(cueX, -1000f, cueX, summaryY, marginPaint)
-                canvas.drawLine(-1000f, summaryY, maxX, summaryY, marginPaint)
+                canvas.drawLine(cueX, minY, cueX, summaryY, marginPaint)
+                canvas.drawLine(minX, summaryY, maxX, summaryY, marginPaint)
 
                 // Labels
                 canvas.drawText("CUES / KEYWORDS", 40f, 60f, textPaint)
@@ -123,16 +124,16 @@ class BackgroundRenderer {
 
                 var y = 80f
                 while (y < summaryY) {
-                    canvas.drawLine(-1000f, y, maxX, y, linePaint)
+                    canvas.drawLine(minX, y, maxX, y, linePaint)
                     y += spacing
                 }
             }
             Background.Type.COLUMN_2 -> {
                 val midX = width / 2f
-                canvas.drawLine(midX, -1000f, midX, maxY, marginPaint)
+                canvas.drawLine(midX, minY, midX, maxY, marginPaint)
                 var y = spacing + 40f
                 while (y < maxY) {
-                    canvas.drawLine(-1000f, y, maxX, y, linePaint)
+                    canvas.drawLine(minX, y, maxX, y, linePaint)
                     y += spacing
                 }
             }
@@ -148,7 +149,7 @@ class BackgroundRenderer {
             else -> {}
         }
 
-        // Render Page Number Footer in ALL Formats/Templates
+        // Page Number Footer
         val pageNumText = "Page ${pageIndex + 1}"
         canvas.drawText(pageNumText, width - 140f, height - 40f, textPaint)
     }

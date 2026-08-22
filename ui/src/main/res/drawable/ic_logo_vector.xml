@@ -5,77 +5,78 @@
     android:viewportWidth="512"
     android:viewportHeight="512">
 
-    <!-- Deep Black Rounded Tile Background -->
+    <!-- Warm Dark Leather Rounded Tile Base -->
     <path
         android:pathData="M108,0 L404,0 Q512,0 512,108 L512,404 Q512,512 404,512 L108,512 Q0,512 0,404 L0,108 Q0,0 108,0 Z"
-        android:fillColor="#09090B" />
+        android:fillColor="#1F1610" />
 
-    <!-- === HARDCOVER NOTEBOOK / DIARY === -->
-    <!-- Diary Cover Frame -->
+    <!-- === LEATHER DIARY / NOTEBOOK PAGE (Behind Pen) === -->
+    <!-- Paper Base Card -->
     <path
-        android:pathData="M138,110 L342,110 Q370,110 370,138 L370,392 Q370,420 342,420 L138,420 Q110,420 110,392 L110,138 Q110,110 138,110 Z"
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="16" />
+        android:pathData="M144,110 L346,110 Q370,110 370,134 L370,396 Q370,420 346,420 L144,420 Q120,420 120,396 L120,134 Q120,110 144,110 Z"
+        android:fillColor="#FAF6EE" />
 
-    <!-- Diary Spine -->
+    <!-- Leather Spine Trim -->
     <path
-        android:pathData="M160,110 L160,420"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="8"
-        android:strokeAlpha="0.3" />
+        android:pathData="M124,110 L154,110 Q154,110 154,110 L154,420 Q124,420 124,420 Z"
+        android:fillColor="#8B5E3C" />
 
-    <!-- Diary Bookmark Ribbon -->
+    <!-- Red Margin Line -->
     <path
-        android:pathData="M310,110 L310,240 L322,226 L334,240 L334,110 Z"
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.85" />
+        android:pathData="M184,110 L184,420"
+        android:strokeColor="#DC2626"
+        android:strokeWidth="4"
+        android:strokeAlpha="0.6" />
+
+    <!-- Amber Bookmark Ribbon -->
+    <path
+        android:pathData="M300,110 L300,230 L312,216 L324,230 L324,110 Z"
+        android:fillColor="#C88A4B" />
 
     <!-- Ruled Page Lines -->
-    <path android:pathData="M184,200 L280,200" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
-    <path android:pathData="M184,240 L280,240" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
-    <path android:pathData="M184,280 L330,280" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
-    <path android:pathData="M184,320 L330,320" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
-    <path android:pathData="M184,360 L330,360" android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeAlpha="0.25" android:strokeLineCap="round" />
+    <path android:pathData="M196,180 L340,180" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
+    <path android:pathData="M196,220 L340,220" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
+    <path android:pathData="M196,260 L340,260" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
+    <path android:pathData="M196,300 L340,300" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
+    <path android:pathData="M196,340 L340,340" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
+    <path android:pathData="M196,380 L340,380" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
 
-    <!-- === MODERN MINIMALIST IPAD STYLUS === -->
-    <!-- Stylus Conical Tip -->
+    <!-- === SLEEK APPLE-PENCIL STYLE ACTIVE STYLUS === -->
+    <!-- Conical Tip -->
     <path
-        android:pathData="M100,400 L132,352 L152,372 Z"
-        android:fillColor="#FFFFFF" />
+        android:pathData="M96,404 L132,352 L152,372 Z"
+        android:fillColor="#FAF6EE" />
 
-    <!-- Fine Tip Point -->
+    <!-- Tip Nib Point -->
     <path
-        android:pathData="M98,402 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
-        android:fillColor="#FFFFFF" />
+        android:pathData="M94,406 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
+        android:fillColor="#2D2B28" />
 
-    <!-- Stylus Metallic Accent Ring -->
+    <!-- Metallic Gold Collar Ring -->
     <path
-        android:pathData="M132,352 L152,372 L160,364 L140,344 Z"
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.6" />
+        android:pathData="M132,352 L152,372 L162,362 L142,342 Z"
+        android:fillColor="#C88A4B" />
 
     <!-- Stylus Body -->
     <path
-        android:pathData="M140,344 L160,364 L366,158 L346,138 Z"
-        android:fillColor="#FFFFFF" />
+        android:pathData="M142,342 L162,362 L368,156 L348,136 Z"
+        android:fillColor="#F4EAD6" />
 
-    <!-- Stylus Flat Side Accent -->
+    <!-- Flat Side Sensor Accent -->
     <path
-        android:pathData="M152,340 L350,142"
-        android:strokeColor="#09090B"
-        android:strokeWidth="3"
-        android:strokeAlpha="0.35" />
+        android:pathData="M156,338 L352,142"
+        android:strokeColor="#8B5E3C"
+        android:strokeWidth="3.5"
+        android:strokeAlpha="0.4" />
 
-    <!-- Stylus Top Charging Ring Accent -->
+    <!-- Top Metallic Band -->
     <path
-        android:pathData="M346,138 L366,158 L376,148 L356,128 Z"
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.6" />
+        android:pathData="M348,136 L368,156 L378,146 L358,126 Z"
+        android:fillColor="#C88A4B" />
 
-    <!-- Stylus Flat Cap Top -->
+    <!-- Flat Top Cap -->
     <path
-        android:pathData="M356,128 L376,148 L392,132 L372,112 Z"
-        android:fillColor="#FFFFFF" />
+        android:pathData="M358,126 L378,146 L394,130 L374,110 Z"
+        android:fillColor="#FAF6EE" />
 
 </vector>

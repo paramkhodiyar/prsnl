@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -241,38 +243,44 @@ fun PageEditorScreen(
                 val scrollState = rememberScrollState()
 
                 if (pagesList.isNotEmpty()) {
-                    val columnModifier = if (!isFingerDrawingEnabled) {
-                        Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scrollState)
-                    } else {
-                        Modifier.fillMaxSize()
-                    }
-
                     Column(
-                        modifier = columnModifier,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         pagesList.forEachIndexed { index, singlePage ->
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(vertical = 12.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp)
                             ) {
-                                Text(
-                                    text = "Printable A4 Page ${index + 1}",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF5C5850),
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                )
+                                // Page Separator Header Banner
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(bottom = 10.dp)
+                                ) {
+                                    Box(modifier = Modifier.width(40.dp).height(1.5.dp).background(Color(0xFFC88A4B)))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "A4 Page ${index + 1} of ${pagesList.size}",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF8B5E3C)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Box(modifier = Modifier.width(40.dp).height(1.5.dp).background(Color(0xFFC88A4B)))
+                                }
 
-                                Box(
+                                Card(
                                     modifier = Modifier
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        .padding(horizontal = 16.dp)
                                         .widthIn(max = 1000.dp)
-                                        .aspectRatio(1f / 1.414f)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .border(1.dp, Color(0xFFE2D7C5), RoundedCornerShape(8.dp))
+                                        .aspectRatio(1f / 1.414f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                                 ) {
                                     AndroidView(
                                         factory = { context ->
@@ -291,8 +299,6 @@ fun PageEditorScreen(
                                                     viewModel.executeCommand(index, command)
                                                 }
                                                 this.onAutoStylusSwitch = {
-                                                    // Only auto-switch to PEN when already in an ink tool.
-                                                    // NEVER override eraser, select, lasso, shape, or text tools.
                                                     val current = viewModel.toolMode.value
                                                     val isInkTool = current == CanvasToolMode.PEN ||
                                                         current == CanvasToolMode.PENCIL ||
@@ -321,13 +327,15 @@ fun PageEditorScreen(
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
+
+                                Spacer(modifier = Modifier.height(24.dp))
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(100.dp))
+                        Spacer(modifier = Modifier.height(120.dp))
                     }
 
-                    // Draggable & Floating Writing Toolbar Overlay
+                    // Floating Toolbar Overlay
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -413,6 +421,8 @@ fun PageEditorScreen(
         if (showSettingsModal && activePage != null) {
             NotebookSettingsModal(
                 currentBackground = activePage.background,
+                isFingerDrawingEnabled = isFingerDrawingEnabled,
+                isPressureSensitivityEnabled = isPressureSensitivityEnabled,
                 onDismiss = { showSettingsModal = false },
                 onBackgroundTypeChange = { newType ->
                     viewModel.changeBackgroundType(newType)
@@ -422,7 +432,9 @@ fun PageEditorScreen(
                 },
                 onPaperColorChange = { newColor ->
                     viewModel.changePaperColor(newColor)
-                }
+                },
+                onFingerDrawingToggle = { isFingerDrawingEnabled = !isFingerDrawingEnabled },
+                onPressureSensitivityToggle = { isPressureSensitivityEnabled = !isPressureSensitivityEnabled }
             )
         }
 

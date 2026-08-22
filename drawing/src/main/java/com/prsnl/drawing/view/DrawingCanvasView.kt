@@ -122,7 +122,17 @@ class DrawingCanvasView @JvmOverloads constructor(
     private val scaleGestureDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             val factor = detector.scaleFactor
-            zoomScale = (zoomScale * factor).coerceIn(0.5f, 5.0f)
+            val oldScale = zoomScale
+            val newScale = (zoomScale * factor).coerceIn(0.3f, 8.0f)
+            val scaleRatio = newScale / oldScale
+
+            val focusX = detector.focusX
+            val focusY = detector.focusY
+
+            panOffsetX = focusX - (focusX - panOffsetX) * scaleRatio
+            panOffsetY = focusY - (focusY - panOffsetY) * scaleRatio
+            zoomScale = newScale
+
             invalidate()
             return true
         }
