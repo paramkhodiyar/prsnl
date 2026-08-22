@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.prsnl.drawing.UndoRedoManagerTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-08-22T23:36:21.290Z" hostname="Params-MacBook-Pro.local" time="0.028">
+  <properties/>
+  <testcase name="testUndoRedoSequence" classname="com.prsnl.drawing.UndoRedoManagerTest" time="0.028"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,30 @@
+[
+    {
+        "merged": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-debug-56:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-main-58:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-debug-56:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-main-58:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-debug-56:/drawable_ic_logo.xml.flat",
+        "source": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-main-58:/drawable/ic_logo.xml"
+    },
+    {
+        "merged": "com.prsnl.app-debug-56:/drawable_ic_logo_vector.xml.flat",
+        "source": "com.prsnl.app-main-58:/drawable/ic_logo_vector.xml"
+    },
+    {
+        "merged": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-debug-56:/drawable_ic_launcher.xml.flat",
+        "source": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-main-58:/drawable/ic_launcher.xml"
+    },
+    {
+        "merged": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-debug-56:/drawable_ic_logo_vector.xml.flat",
+        "source": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-main-58:/drawable/ic_logo_vector.xml"
+    },
+    {
+        "merged": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-debug-56:/drawable_ic_launcher_round.xml.flat",
+        "source": "/Users/paramkhodiyar/.gradle/daemon/9.7.1/com.prsnl.app-main-58:/drawable/ic_launcher_round.xml"
+    }
+]

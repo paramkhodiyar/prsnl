@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.prsnl.document.CommandTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-22T23:32:35.807Z" hostname="Params-MacBook-Pro.local" time="0.028">
+  <properties/>
+  <testcase name="testAddElementAndUndo" classname="com.prsnl.document.CommandTest" time="0.025"/>
+  <testcase name="testDeleteElementAndUndo" classname="com.prsnl.document.CommandTest" time="0.0"/>
+  <testcase name="testReplaceElementAndUndo" classname="com.prsnl.document.CommandTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

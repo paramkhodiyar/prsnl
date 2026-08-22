@@ -1,0 +1,23 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Premium Dark Charcoal Tile -->
+    <path
+        android:fillColor="#1C1C1E"
+        android:pathData="M14,14 h80 a14,14 0 0 1 14,14 v52 a14,14 0 0 1 -14,14 h-80 a14,14 0 0 1 -14,-14 v-52 a14,14 0 0 1 14,-14 Z" />
+
+    <!-- Minimalist Champagne Gold Geometry framing 'p' & Fountain Pen Tip -->
+    <path
+        android:fillColor="#E0A96D"
+        android:pathData="M34,26 h22 a18,18 0 0 1 18,18 v0 a18,18 0 0 1 -18,18 h-12 v20 h-10 Z M44,36 v16 h12 a8,8 0 0 0 8,-8 v0 a8,8 0 0 0 -8,-8 Z" />
+
+    <!-- Stylized Nib Line -->
+    <path
+        android:strokeColor="#1C1C1E"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M44,44 h14" />
+</vector>

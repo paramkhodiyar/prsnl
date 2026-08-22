@@ -1,0 +1,51 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <!-- Deep Black Premium Tile Background (Soft Corners) -->
+    <path
+        android:fillColor="#09090B"
+        android:pathData="M144,32 h224 a112,112 0 0 1 112,112 v224 a112,112 0 0 1 -112,112 h-224 a112,112 0 0 1 -112,-112 v-224 a112,112 0 0 1 112,-112 Z" />
+
+    <!-- Outer Fine Border Frame -->
+    <path
+        android:strokeColor="#27272A"
+        android:strokeWidth="4"
+        android:pathData="M144,32 h224 a112,112 0 0 1 112,112 v224 a112,112 0 0 1 -112,112 h-224 a112,112 0 0 1 -112,-112 v-224 a112,112 0 0 1 112,-112 Z" />
+
+    <!-- Futuristic Notebook Frame (White Line Art) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="20"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M172,128 h168 a36,36 0 0 1 36,36 v200 a36,36 0 0 1 -36,36 h-168 a36,36 0 0 1 -36,-36 v-200 a36,36 0 0 1 36,-36 Z" />
+
+    <!-- Notebook Spine Accent Line -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:pathData="M188,128 v272" />
+
+    <!-- Futuristic Pen Nib Shape -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M376,112 L288,200 C264,224 248,240 232,272 C228,280 224,296 224,296 C224,296 240,292 248,288 C280,272 296,256 320,232 L408,144 Z" />
+
+    <!-- Laser Nib Center Slit -->
+    <path
+        android:strokeColor="#09090B"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M224,296 L280,240" />
+
+    <!-- Minimalist Ink Flow Curve -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="16"
+        android:strokeLineCap="round"
+        android:pathData="M216,336 C244,354 284,356 320,344" />
+</vector>
