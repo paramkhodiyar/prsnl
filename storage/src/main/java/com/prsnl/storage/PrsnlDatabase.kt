@@ -11,7 +11,7 @@ import com.prsnl.storage.entity.PageEntity
 
 @Database(
     entities = [FolderEntity::class, NotebookEntity::class, PageEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class PrsnlDatabase : RoomDatabase() {

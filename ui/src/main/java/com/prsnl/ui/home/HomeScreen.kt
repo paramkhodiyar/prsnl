@@ -34,7 +34,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -68,11 +70,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.prsnl.document.model.Folder
-import com.prsnl.pdf.PdfImporter
 import com.prsnl.ui.R
-import java.io.File
-import java.io.FileOutputStream
-import java.util.UUID
+import com.prsnl.ui.common.AppToastBanner
+import com.prsnl.ui.common.ToastMessage
+import com.prsnl.ui.common.ToastType
+import com.prsnl.ui.security.PinKeypadModal
+import com.prsnl.ui.security.PinModalMode
+import com.prsnl.ui.settings.AppSettingsModal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,12 +86,23 @@ fun HomeScreen(
 ) {
     val notebooks by viewModel.notebooks.collectAsState()
     val dbFolders by viewModel.folders.collectAsState()
+
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var selectedFolderForMenu by remember { mutableStateOf<Folder?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
+
     var crashLogText by remember { mutableStateOf(com.prsnl.core.log.CrashLogger.getLatestCrashLog(context)) }
     var showCrashLogModal by remember { mutableStateOf(false) }
+    var showSettingsModal by remember { mutableStateOf(false) }
+
+    // Toast state
+    var activeToast by remember { mutableStateOf<ToastMessage?>(null) }
+
+    // PIN & Lock States
+    var folderToUnlock by remember { mutableStateOf<Folder?>(null) }
+    var folderToLockSetup by remember { mutableStateOf<Folder?>(null) }
+    var folderToResetPin by remember { mutableStateOf<Folder?>(null) }
 
     val displayFolders = remember(dbFolders) {
         if (dbFolders.isEmpty()) {
@@ -152,17 +167,26 @@ fun HomeScreen(
                             }
                         }
 
-                        IconButton(
-                            onClick = {
-                                crashLogText = com.prsnl.core.log.CrashLogger.getLatestCrashLog(context) ?: "No crashes recorded. System running cleanly!"
-                                showCrashLogModal = true
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { showSettingsModal = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Settings",
+                                    tint = Color(0xFFC88A4B)
+                                )
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "View Crash Logs",
-                                tint = if (crashLogText != null) Color(0xFFDC2626) else Color(0xFFC88A4B)
-                            )
+                            IconButton(
+                                onClick = {
+                                    crashLogText = com.prsnl.core.log.CrashLogger.getLatestCrashLog(context) ?: "No crashes recorded. System running cleanly!"
+                                    showCrashLogModal = true
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "View Crash Logs",
+                                    tint = if (crashLogText != null) Color(0xFFDC2626) else Color(0xFFC88A4B)
+                                )
+                            }
                         }
                     }
 
@@ -171,7 +195,7 @@ fun HomeScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search folders (e.g. Finance)...", color = Color(0xFF8E887E)) },
+                        placeholder = { Text("Search folders...", color = Color(0xFF8E887E)) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFC88A4B)) },
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
@@ -212,76 +236,172 @@ fun HomeScreen(
             ) {
                 val columnCount = if (maxWidth > 700.dp) 3 else 2
 
-                AnimatedContent(
-                    targetState = filteredFolders,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "FolderGridTransition"
-                ) { foldersToRender ->
-                    if (foldersToRender.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.Create,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(56.dp),
-                                    tint = Color(0xFF8E887E)
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "No folders found.\nTap '+ New Folder' to create one!",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color(0xFF5C5850)
-                                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AnimatedContent(
+                        targetState = filteredFolders,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "FolderGridTransition"
+                    ) { foldersToRender ->
+                        if (foldersToRender.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        Icons.Default.Create,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(56.dp),
+                                        tint = Color(0xFF8E887E)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "No folders found.\nTap '+ New Folder' to create one!",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color(0xFF5C5850)
+                                    )
+                                }
                             }
-                        }
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(columnCount),
-                            contentPadding = PaddingValues(24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            items(foldersToRender, key = { it.id }) { folder ->
-                                val notebookCount = notebooks.count { it.folderName.equals(folder.name, ignoreCase = true) }
-                                FolderCard(
-                                    folder = folder,
-                                    notebookCount = notebookCount,
-                                    onClick = { onFolderClick(folder.name) },
-                                    onLongClick = { selectedFolderForMenu = folder }
-                                )
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(columnCount),
+                                contentPadding = PaddingValues(24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(20.dp)
+                            ) {
+                                items(foldersToRender, key = { it.id }) { folder ->
+                                    val notebookCount = notebooks.count { it.folderName.equals(folder.name, ignoreCase = true) }
+                                    FolderCard(
+                                        folder = folder,
+                                        notebookCount = notebookCount,
+                                        onClick = {
+                                            if (folder.isLocked) {
+                                                folderToUnlock = folder
+                                            } else {
+                                                onFolderClick(folder.name)
+                                            }
+                                        },
+                                        onLongClick = { selectedFolderForMenu = folder }
+                                    )
+                                }
                             }
                         }
                     }
+
+                    // In-App Toast Banner Overlay
+                    AppToastBanner(
+                        toast = activeToast,
+                        onDismiss = { activeToast = null },
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
                 }
             }
         }
 
+        // Modals & Dialogs
         if (showCreateFolderDialog) {
             CreateFolderDialog(
                 onDismiss = { showCreateFolderDialog = false },
                 onCreate = { folderName ->
                     viewModel.createFolder(folderName)
                     showCreateFolderDialog = false
+                    activeToast = ToastMessage("Folder created successfully", ToastType.SUCCESS)
                     onFolderClick(folderName)
                 }
             )
         }
 
         if (selectedFolderForMenu != null) {
+            val targetFolder = selectedFolderForMenu!!
             FolderContextMenuModal(
-                folder = selectedFolderForMenu!!,
+                folder = targetFolder,
                 onDismiss = { selectedFolderForMenu = null },
                 onUpdate = { newName, newColor ->
-                    viewModel.updateFolder(selectedFolderForMenu!!.id, selectedFolderForMenu!!.name, newName, newColor)
+                    viewModel.updateFolder(targetFolder.id, targetFolder.name, newName, newColor)
                     selectedFolderForMenu = null
+                    activeToast = ToastMessage("Folder updated successfully", ToastType.SUCCESS)
                 },
                 onDelete = {
-                    viewModel.deleteFolder(selectedFolderForMenu!!.id, selectedFolderForMenu!!.name)
+                    viewModel.deleteFolder(targetFolder.id, targetFolder.name)
                     selectedFolderForMenu = null
+                    activeToast = ToastMessage("Folder deleted", ToastType.INFO)
+                },
+                onLockToggle = {
+                    selectedFolderForMenu = null
+                    if (targetFolder.isLocked) {
+                        viewModel.updateFolderLock(targetFolder.id, false)
+                        activeToast = ToastMessage("Folder unlocked", ToastType.SUCCESS)
+                    } else {
+                        folderToLockSetup = targetFolder
+                    }
                 }
+            )
+        }
+
+        // PIN Keypad Modals
+        if (folderToUnlock != null) {
+            val target = folderToUnlock!!
+            PinKeypadModal(
+                mode = PinModalMode.UNLOCK,
+                folderName = target.name,
+                existingPin = target.pin,
+                existingQuestion = target.securityQuestion,
+                existingAnswerHash = target.securityAnswerHash,
+                onSuccessPinSet = { _, _, _ -> },
+                onSuccessUnlocked = {
+                    folderToUnlock = null
+                    activeToast = ToastMessage("Folder unlocked", ToastType.SUCCESS)
+                    onFolderClick(target.name)
+                },
+                onDismiss = { folderToUnlock = null }
+            )
+        }
+
+        if (folderToLockSetup != null) {
+            val target = folderToLockSetup!!
+            PinKeypadModal(
+                mode = PinModalMode.SETUP_PIN,
+                folderName = target.name,
+                onSuccessPinSet = { newPin, question, answerHash ->
+                    viewModel.updateFolderLock(target.id, true, newPin, question, answerHash)
+                    folderToLockSetup = null
+                    activeToast = ToastMessage("Folder locked with PIN", ToastType.SUCCESS)
+                },
+                onSuccessUnlocked = {},
+                onDismiss = { folderToLockSetup = null }
+            )
+        }
+
+        if (folderToResetPin != null) {
+            val target = folderToResetPin!!
+            PinKeypadModal(
+                mode = PinModalMode.RESET_PIN,
+                folderName = target.name,
+                existingPin = target.pin,
+                existingQuestion = target.securityQuestion,
+                existingAnswerHash = target.securityAnswerHash,
+                onSuccessPinSet = { newPin, question, answerHash ->
+                    viewModel.updateFolderLock(target.id, true, newPin, question, answerHash)
+                    folderToResetPin = null
+                    activeToast = ToastMessage("PIN reset successfully", ToastType.SUCCESS)
+                },
+                onSuccessUnlocked = {},
+                onDismiss = { folderToResetPin = null }
+            )
+        }
+
+        if (showSettingsModal) {
+            AppSettingsModal(
+                lockedFolders = displayFolders.filter { it.isLocked },
+                onResetFolderPin = { folder ->
+                    showSettingsModal = false
+                    folderToResetPin = folder
+                },
+                onUnlockFolder = { folder ->
+                    viewModel.updateFolderLock(folder.id, false)
+                    activeToast = ToastMessage("Folder unlocked", ToastType.SUCCESS)
+                },
+                onDismiss = { showSettingsModal = false }
             )
         }
 
@@ -314,8 +434,7 @@ fun FolderCard(
                 )
             },
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F0E6)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F0E6))
     ) {
         Column(
             modifier = Modifier
@@ -336,7 +455,7 @@ fun FolderCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Default.Create,
+                        imageVector = if (folder.isLocked) Icons.Default.Lock else Icons.Default.Create,
                         contentDescription = "Folder",
                         tint = themeColor,
                         modifier = Modifier.size(24.dp)
@@ -352,12 +471,23 @@ fun FolderCard(
             }
 
             Column {
-                Text(
-                    text = folder.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2D2B28)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = folder.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2D2B28)
+                    )
+                    if (folder.isLocked) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Locked",
+                            tint = Color(0xFFC88A4B),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
                 Text(
                     text = "Long-press for options",
                     style = MaterialTheme.typography.labelSmall,
@@ -373,7 +503,8 @@ fun FolderContextMenuModal(
     folder: Folder,
     onDismiss: () -> Unit,
     onUpdate: (newName: String, newColor: Int) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onLockToggle: () -> Unit
 ) {
     var name by remember { mutableStateOf(folder.name) }
     var selectedColor by remember { mutableIntStateOf(folder.color) }
@@ -426,6 +557,40 @@ fun FolderContextMenuModal(
                                 )
                                 .clickable { selectedColor = c }
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFFAF8F5))
+                        .border(1.dp, Color(0xFFE2D7C5), RoundedCornerShape(10.dp))
+                        .clickable { onLockToggle() }
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = Color(0xFFC88A4B),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = if (folder.isLocked) "Unlock Folder (Remove PIN)" else "Lock Folder with PIN",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2D2B28)
+                            )
+                        }
                     }
                 }
             }

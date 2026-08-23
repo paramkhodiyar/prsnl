@@ -18,7 +18,11 @@ class FolderRepositoryImpl(
                     id = entity.id,
                     name = entity.name,
                     createdAt = entity.createdAt,
-                    color = entity.color
+                    color = entity.color,
+                    isLocked = entity.isLocked,
+                    pin = entity.pin,
+                    securityQuestion = entity.securityQuestion,
+                    securityAnswerHash = entity.securityAnswerHash
                 )
             }
         }
@@ -30,7 +34,11 @@ class FolderRepositoryImpl(
                 id = folder.id,
                 name = folder.name,
                 createdAt = folder.createdAt,
-                color = folder.color
+                color = folder.color,
+                isLocked = folder.isLocked,
+                pin = folder.pin,
+                securityQuestion = folder.securityQuestion,
+                securityAnswerHash = folder.securityAnswerHash
             )
         )
     }

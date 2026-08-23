@@ -68,6 +68,27 @@ class HomeViewModel(
         }
     }
 
+    fun updateFolderLock(
+        folderId: String,
+        isLocked: Boolean,
+        pin: String? = null,
+        securityQuestion: String? = null,
+        securityAnswerHash: String? = null
+    ) {
+        val current = _folders.value.toMutableList()
+        val index = current.indexOfFirst { it.id == folderId }
+        if (index != -1) {
+            val updatedFolder = current[index].copy(
+                isLocked = isLocked,
+                pin = if (isLocked) pin else null,
+                securityQuestion = if (isLocked) securityQuestion else null,
+                securityAnswerHash = if (isLocked) securityAnswerHash else null
+            )
+            current[index] = updatedFolder
+            _folders.value = current
+        }
+    }
+
     fun deleteFolder(folderId: String, folderName: String) {
         _folders.value = _folders.value.filterNot { it.id == folderId || it.name.equals(folderName, ignoreCase = true) }
         viewModelScope.launch {
