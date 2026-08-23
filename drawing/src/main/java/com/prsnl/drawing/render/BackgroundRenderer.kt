@@ -1,9 +1,12 @@
 package com.prsnl.drawing.render
 
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import com.prsnl.document.model.Background
+import java.io.File
 
 class BackgroundRenderer {
 
@@ -67,6 +70,18 @@ class BackgroundRenderer {
         when (background.type) {
             Background.Type.BLANK -> {
                 // Plain paper
+            }
+            Background.Type.PDF -> {
+                val pdfRef = background.pdfSourceRef
+                if (!pdfRef.isNullOrBlank()) {
+                    val bgFile = File(pdfRef)
+                    if (bgFile.exists()) {
+                        val bitmap = BitmapFactory.decodeFile(bgFile.absolutePath)
+                        if (bitmap != null) {
+                            canvas.drawBitmap(bitmap, null, RectF(0f, 0f, width, height), null)
+                        }
+                    }
+                }
             }
             Background.Type.RULED -> {
                 var y = spacing + 40f
@@ -159,7 +174,6 @@ class BackgroundRenderer {
                     y += 140f
                 }
             }
-            else -> {}
         }
 
         // Page Number Footer

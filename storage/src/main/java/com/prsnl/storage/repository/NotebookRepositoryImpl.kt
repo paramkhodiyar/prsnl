@@ -116,8 +116,8 @@ class NotebookRepositoryImpl(
             newNotebookId
         }
 
-        val existingPages = pageDao.getPagesForNotebook(notebookId).firstOrNull()
-        if (!existingPages.isNullOrEmpty()) {
+        val existingPages = pageDao.getPagesForNotebookSync(notebookId)
+        if (existingPages.isNotEmpty()) {
             val firstEntity = existingPages.first()
             val elements = fileStorage.loadPageElements(firstEntity.elementFilePath)
             return firstEntity.toDomain(elements)
