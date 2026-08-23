@@ -23,7 +23,7 @@ class InputFilter {
         return false
     }
 
-    fun shouldAcceptPointer(event: MotionEvent, pointerIndex: Int): Boolean {
+    fun shouldAcceptPointer(event: MotionEvent, pointerIndex: Int, isFingerDrawingEnabled: Boolean = true): Boolean {
         val toolType = event.getToolType(pointerIndex)
         val pointerId = event.getPointerId(pointerIndex)
         val currentTime = System.currentTimeMillis()
@@ -34,18 +34,21 @@ class InputFilter {
             isStylusActive = true
             activeStylusPointerId = pointerId
             lastStylusHoverTimeMs = currentTime
-            // Only fire the auto-switch callback once, on the FIRST detection (not on every touch).
             if (!wasAlreadyActive) {
                 onStylusDetected?.invoke()
             }
             return true
         }
 
-        // 2. Active 0ms Palm Rejection:
-        // If stylus hovered within last 3000ms or is active, instantly reject finger touches
-        val isStylusHovering = (currentTime - lastStylusHoverTimeMs) < 3000L
-        if (isStylusActive || isStylusHovering) {
-            if (toolType == MotionEvent.TOOL_TYPE_FINGER) {
+        // 2. Finger input handling:
+        if (toolType == MotionEvent.TOOL_TYPE_FINGER) {
+            // Always allow finger touch when finger drawing is enabled by user
+            if (isFingerDrawingEnabled) {
+                return true
+            }
+            // Active Palm Rejection when finger drawing is disabled
+            val isStylusHovering = (currentTime - lastStylusHoverTimeMs) < 3000L
+            if (isStylusActive || isStylusHovering) {
                 return false
             }
         }

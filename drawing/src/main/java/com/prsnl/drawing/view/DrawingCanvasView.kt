@@ -193,8 +193,17 @@ class DrawingCanvasView @JvmOverloads constructor(
         val index = event.actionIndex
         val safeIndex = index.coerceIn(0, event.pointerCount - 1)
 
-        if (!inputFilter.shouldAcceptPointer(event, safeIndex)) {
+        if (!inputFilter.shouldAcceptPointer(event, safeIndex, isFingerDrawingEnabled)) {
             return false
+        }
+
+        when (action) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
+            }
         }
 
         when (currentToolMode) {
