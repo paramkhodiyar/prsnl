@@ -3,6 +3,7 @@ package com.prsnl.ui.home
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.prsnl.document.model.Background
@@ -209,7 +210,14 @@ class HomeViewModel(
                 val pdfTitle = getPdfFileName(context, uri)
                 val tempPdfFile = File(context.cacheDir, "import_${UUID.randomUUID()}.pdf")
                 context.contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(tempPdfFile).use { output -> input.copyTo(output) }
+                    FileOutputStream(tempPdfFile).use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var read: Int
+                        while (input.read(buffer).also { read = it } != -1) {
+                            output.write(buffer, 0, read)
+                        }
+                        output.flush()
+                    }
                 }
 
                 val pdfImporter = PdfImporter(context)
@@ -238,13 +246,18 @@ class HomeViewModel(
                     // 3. Save parent notebook once more to guarantee updated pages reference
                     notebookRepository.saveNotebook(updatedNotebook)
 
-                    // 4. Open the newly imported PDF notebook immediately!
+                    // 4. Delete temp file
+                    tempPdfFile.delete()
+
+                    // 5. Open the newly imported PDF notebook immediately!
                     onImported(updatedNotebook.id)
                 } else {
                     android.util.Log.e("HomeViewModel", "PdfImporter returned null for file ${tempPdfFile.name}")
+                    Toast.makeText(context, "Could not parse pages from PDF document.", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("HomeViewModel", "Failed to import PDF file", e)
+                Toast.makeText(context, "Failed to import PDF: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
     }

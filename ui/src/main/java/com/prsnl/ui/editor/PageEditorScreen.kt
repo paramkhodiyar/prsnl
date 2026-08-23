@@ -189,7 +189,10 @@ fun PageEditorScreen(
                             Text(
                                 text = "$notebookTitle • Page ${activePageIndex + 1} of ${pagesList.size}",
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2D2B28)
+                                color = Color(0xFF2D2B28),
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             if (isSaving) {
                                 Text(
@@ -364,7 +367,7 @@ fun PageEditorScreen(
                                                     val isInkTool = current == CanvasToolMode.PEN ||
                                                         current == CanvasToolMode.PENCIL ||
                                                         current == CanvasToolMode.HIGHLIGHTER
-                                                    if (isInkTool) {
+                                                    if (!isInkTool) {
                                                         viewModel.setToolMode(CanvasToolMode.PEN)
                                                     }
                                                 }

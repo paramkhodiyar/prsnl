@@ -91,11 +91,11 @@ fun FloatingWritingToolbar(
     var lastTappedTool by remember { mutableStateOf("") }
 
     val stationeryInkColors = listOf(
-        AndroidColor.parseColor("#2D2B28"),
-        AndroidColor.parseColor("#3A3F47"),
-        AndroidColor.parseColor("#8B5E3C"),
-        AndroidColor.parseColor("#C88A4B"),
-        AndroidColor.parseColor("#4A7C59")
+        AndroidColor.parseColor("#2D2B28"), // Black
+        AndroidColor.parseColor("#DC2626"), // Red
+        AndroidColor.parseColor("#2563EB"), // Blue
+        AndroidColor.parseColor("#16A34A"), // Green
+        AndroidColor.parseColor("#D97706")  // Yellow / Amber
     )
 
     fun handleToolTap(toolName: String, onFirstTap: () -> Unit) {
