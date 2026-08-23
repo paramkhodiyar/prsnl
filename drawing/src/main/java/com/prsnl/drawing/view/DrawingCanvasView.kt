@@ -130,6 +130,7 @@ class DrawingCanvasView @JvmOverloads constructor(
     private var draggingCornerIndex = -1   // 0=TL, 1=TR, 2=BL, 3=BR
     private var selectedElement: Element? = null
     private var transformStartElement: Element? = null
+    private var transformStartGroup = listOf<Element>()
     private var transformLastElement: Element? = null
     private var selectDragLastX = 0f
     private var selectDragLastY = 0f
@@ -481,7 +482,8 @@ class DrawingCanvasView @JvmOverloads constructor(
                 isDraggingSelectedElement = false
                 isDraggingCornerHandle = false
                 draggingCornerIndex = -1
-                transformStartElement = null
+                transformStartElement = selectedElement
+                transformStartGroup = lassoSelectedElements.toList()
                 transformLastElement = null
 
                 val activeBox = getActiveSelectionBox()
@@ -767,6 +769,22 @@ class DrawingCanvasView @JvmOverloads constructor(
     }
 
     private fun commitSelectionTransform() {
+        if (lassoSelectedElements.isNotEmpty() && transformStartGroup.isNotEmpty()) {
+            val replaceCmds = mutableListOf<Command>()
+            for (startEl in transformStartGroup) {
+                val endEl = lassoSelectedElements.find { it.id == startEl.id }
+                if (endEl != null && startEl != endEl) {
+                    replaceCmds.add(Command.ReplaceElement(startEl, endEl))
+                }
+            }
+            if (replaceCmds.isNotEmpty()) {
+                val compound = if (replaceCmds.size == 1) replaceCmds.first() else Command.CompoundCommand(replaceCmds)
+                onCommandIssued?.invoke(compound)
+            }
+            transformStartGroup = emptyList()
+            return
+        }
+
         val start = transformStartElement ?: return
         val end = transformLastElement ?: selectedElement ?: return
         if (start.boundingBox == end.boundingBox && start == end) return
