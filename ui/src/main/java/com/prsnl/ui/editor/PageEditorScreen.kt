@@ -362,15 +362,6 @@ fun PageEditorScreen(
                                                 this.onCommandIssued = { command ->
                                                     viewModel.executeCommand(index, command)
                                                 }
-                                                this.onAutoStylusSwitch = {
-                                                    val current = viewModel.toolMode.value
-                                                    val isWritingOrDrawing = current == CanvasToolMode.PEN ||
-                                                        current == CanvasToolMode.PENCIL ||
-                                                        current == CanvasToolMode.HIGHLIGHTER
-                                                    if (!isWritingOrDrawing && current != CanvasToolMode.SELECT && current != CanvasToolMode.LASSO) {
-                                                        viewModel.setToolMode(CanvasToolMode.PEN)
-                                                    }
-                                                }
                                                 this.onInsertTextBoxRequested = { x, y ->
                                                     pendingTextInsertPos = Pair(x, y)
                                                 }

@@ -216,15 +216,7 @@ class DrawingCanvasView @JvmOverloads constructor(
     private var holdToRecognizeRunnable: Runnable? = null
 
     init {
-        inputFilter.onStylusDetected = {
-            val isTransformingSelection = selectedElement != null ||
-                lassoSelectedElements.isNotEmpty() ||
-                currentToolMode == CanvasToolMode.SELECT ||
-                currentToolMode == CanvasToolMode.LASSO
-            if (!isTransformingSelection) {
-                onAutoStylusSwitch?.invoke()
-            }
-        }
+        inputFilter.onStylusDetected = null
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
