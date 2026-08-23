@@ -34,6 +34,8 @@ class BackgroundRenderer {
         color = 0xFF71717A.toInt()
     }
 
+    private val pdfBitmapCache = object : android.util.LruCache<String, android.graphics.Bitmap>(20) {}
+
     fun renderBackground(
         canvas: Canvas,
         background: Background,
@@ -74,12 +76,22 @@ class BackgroundRenderer {
             Background.Type.PDF -> {
                 val pdfRef = background.pdfSourceRef
                 if (!pdfRef.isNullOrBlank()) {
-                    val bgFile = File(pdfRef)
-                    if (bgFile.exists()) {
-                        val bitmap = BitmapFactory.decodeFile(bgFile.absolutePath)
-                        if (bitmap != null) {
-                            canvas.drawBitmap(bitmap, null, RectF(0f, 0f, width, height), null)
+                    var bitmap = pdfBitmapCache.get(pdfRef)
+                    if (bitmap == null || bitmap.isRecycled) {
+                        val bgFile = File(pdfRef)
+                        if (bgFile.exists()) {
+                            try {
+                                bitmap = BitmapFactory.decodeFile(bgFile.absolutePath)
+                                if (bitmap != null) {
+                                    pdfBitmapCache.put(pdfRef, bitmap)
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("BackgroundRenderer", "Error decoding PDF bitmap at $pdfRef", e)
+                            }
                         }
+                    }
+                    if (bitmap != null && !bitmap.isRecycled) {
+                        canvas.drawBitmap(bitmap, null, RectF(0f, 0f, width, height), null)
                     }
                 }
             }

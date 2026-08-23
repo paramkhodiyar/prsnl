@@ -42,6 +42,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -293,6 +294,16 @@ fun NotebookCard(
 ) {
     val coverColor = Color(notebook.coverColor)
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val pdfPreviewBitmap = remember(notebook.id) {
+        val pdfFile = java.io.File(context.filesDir, "pdf_imports/${notebook.id}/page_1.png")
+        if (pdfFile.exists()) {
+            try {
+                android.graphics.BitmapFactory.decodeFile(pdfFile.absolutePath)
+            } catch (_: Exception) { null }
+        } else null
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -314,6 +325,14 @@ fun NotebookCard(
                     .height(150.dp)
                     .background(coverColor)
             ) {
+                if (pdfPreviewBitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = pdfPreviewBitmap.asImageBitmap(),
+                        contentDescription = "PDF Document Preview",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 // Spine accent line
                 Box(
                     modifier = Modifier
@@ -327,7 +346,7 @@ fun NotebookCard(
                         .align(Alignment.Center)
                         .padding(horizontal = 16.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0x22FFFFFF))
+                        .background(Color(0xAA2D2B28))
                         .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(8.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
