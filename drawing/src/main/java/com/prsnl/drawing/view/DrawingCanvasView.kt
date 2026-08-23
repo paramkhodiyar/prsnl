@@ -76,6 +76,10 @@ class DrawingCanvasView @JvmOverloads constructor(
         colorLight = 0xFFFAF8F5.toInt(),
         colorDark = 0xFF1C1C1E.toInt()
     )
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     var pageIndex: Int = 0
     var documentWidth: Float = 1200f

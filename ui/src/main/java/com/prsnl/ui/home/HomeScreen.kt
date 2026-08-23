@@ -41,7 +41,10 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +77,7 @@ import com.prsnl.ui.R
 import com.prsnl.ui.common.AppToastBanner
 import com.prsnl.ui.common.ToastMessage
 import com.prsnl.ui.common.ToastType
+import com.prsnl.ui.folder.TOPIC_ICON_OPTIONS
 import com.prsnl.ui.security.PinKeypadModal
 import com.prsnl.ui.security.PinModalMode
 import com.prsnl.ui.settings.AppSettingsModal
@@ -103,13 +107,14 @@ fun HomeScreen(
     var folderToUnlock by remember { mutableStateOf<Folder?>(null) }
     var folderToLockSetup by remember { mutableStateOf<Folder?>(null) }
     var folderToResetPin by remember { mutableStateOf<Folder?>(null) }
+    var pendingCreationLockFolder by remember { mutableStateOf<Folder?>(null) }
 
     val displayFolders = remember(dbFolders) {
         if (dbFolders.isEmpty()) {
             listOf(
-                Folder("f1", "Finance", color = 0xFF8B5E3C.toInt()),
-                Folder("f2", "Personal", color = 0xFFC85A32.toInt()),
-                Folder("f3", "Work", color = 0xFF4A7C59.toInt())
+                Folder("f1", "Finance", color = 0xFF8B5E3C.toInt(), iconName = "FINANCE"),
+                Folder("f2", "Personal", color = 0xFFC85A32.toInt(), iconName = "PERSONAL"),
+                Folder("f3", "Work", color = 0xFF4A7C59.toInt(), iconName = "WORK")
             )
         } else dbFolders
     }
@@ -302,11 +307,35 @@ fun HomeScreen(
         if (showCreateFolderDialog) {
             CreateFolderDialog(
                 onDismiss = { showCreateFolderDialog = false },
-                onCreate = { folderName ->
-                    viewModel.createFolder(folderName)
+                onCreate = { folderName, folderColor, iconName, shouldLock ->
+                    val createdFolder = viewModel.createFolder(folderName, folderColor, iconName)
                     showCreateFolderDialog = false
-                    activeToast = ToastMessage("Folder created successfully", ToastType.SUCCESS)
-                    onFolderClick(folderName)
+                    if (shouldLock) {
+                        pendingCreationLockFolder = createdFolder
+                    } else {
+                        activeToast = ToastMessage("Folder created successfully", ToastType.SUCCESS)
+                        onFolderClick(createdFolder.name)
+                    }
+                }
+            )
+        }
+
+        if (pendingCreationLockFolder != null) {
+            val target = pendingCreationLockFolder!!
+            PinKeypadModal(
+                mode = PinModalMode.SETUP_PIN,
+                folderName = target.name,
+                onSuccessPinSet = { newPin, question, answerHash ->
+                    viewModel.updateFolderLock(target.id, true, newPin, question, answerHash)
+                    pendingCreationLockFolder = null
+                    activeToast = ToastMessage("Folder created and locked with PIN", ToastType.SUCCESS)
+                    onFolderClick(target.name)
+                },
+                onSuccessUnlocked = {},
+                onDismiss = {
+                    pendingCreationLockFolder = null
+                    activeToast = ToastMessage("Folder created", ToastType.SUCCESS)
+                    onFolderClick(target.name)
                 }
             )
         }
@@ -316,8 +345,8 @@ fun HomeScreen(
             FolderContextMenuModal(
                 folder = targetFolder,
                 onDismiss = { selectedFolderForMenu = null },
-                onUpdate = { newName, newColor ->
-                    viewModel.updateFolder(targetFolder.id, targetFolder.name, newName, newColor)
+                onUpdate = { newName, newColor, newIconName ->
+                    viewModel.updateFolder(targetFolder.id, targetFolder.name, newName, newColor, newIconName)
                     selectedFolderForMenu = null
                     activeToast = ToastMessage("Folder updated successfully", ToastType.SUCCESS)
                 },
@@ -502,12 +531,13 @@ fun FolderCard(
 fun FolderContextMenuModal(
     folder: Folder,
     onDismiss: () -> Unit,
-    onUpdate: (newName: String, newColor: Int) -> Unit,
+    onUpdate: (newName: String, newColor: Int, newIconName: String) -> Unit,
     onDelete: () -> Unit,
     onLockToggle: () -> Unit
 ) {
     var name by remember { mutableStateOf(folder.name) }
     var selectedColor by remember { mutableIntStateOf(folder.color) }
+    var selectedIcon by remember { mutableStateOf(folder.iconName) }
 
     val colors = listOf(
         0xFF8B5E3C.toInt(),
@@ -539,9 +569,22 @@ fun FolderContextMenuModal(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
-                Text("Folder Accent Color", fontSize = 12.sp, color = Color(0xFF5C5850))
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Folder Topic / Icon", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TOPIC_ICON_OPTIONS.take(4).forEach { (iconKey, labelText) ->
+                        FilterChip(
+                            selected = selectedIcon == iconKey,
+                            onClick = { selectedIcon = iconKey },
+                            label = { Text(labelText, fontSize = 10.sp) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Folder Accent Color", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     colors.forEach { c ->
@@ -600,7 +643,7 @@ fun FolderContextMenuModal(
                 TextButton(onClick = onDelete) {
                     Text("Delete Folder", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
                 }
-                TextButton(onClick = { onUpdate(name, selectedColor) }) {
+                TextButton(onClick = { onUpdate(name, selectedColor, selectedIcon) }) {
                     Text("Save Changes", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
                 }
             }
@@ -616,9 +659,20 @@ fun FolderContextMenuModal(
 @Composable
 fun CreateFolderDialog(
     onDismiss: () -> Unit,
-    onCreate: (String) -> Unit
+    onCreate: (name: String, color: Int, iconName: String, shouldLock: Boolean) -> Unit
 ) {
     var folderName by remember { mutableStateOf("") }
+    var selectedColor by remember { mutableIntStateOf(0xFF8B5E3C.toInt()) }
+    var selectedIcon by remember { mutableStateOf("FOLDER") }
+    var shouldLock by remember { mutableStateOf(false) }
+
+    val colors = listOf(
+        0xFF8B5E3C.toInt(),
+        0xFFC85A32.toInt(),
+        0xFF4A7C59.toInt(),
+        0xFFC88A4B.toInt(),
+        0xFF4C6EF5.toInt()
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -627,24 +681,69 @@ fun CreateFolderDialog(
         textContentColor = Color(0xFF2D2B28),
         title = { Text("Create New Folder", fontWeight = FontWeight.Bold) },
         text = {
-            OutlinedTextField(
-                value = folderName,
-                onValueChange = { folderName = it },
-                label = { Text("Folder Name (e.g. Finance, Maths)", color = Color(0xFF5C5850)) },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFC88A4B),
-                    unfocusedBorderColor = Color(0xFFE2D7C5),
-                    focusedTextColor = Color(0xFF2D2B28),
-                    unfocusedTextColor = Color(0xFF2D2B28)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column {
+                OutlinedTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it },
+                    label = { Text("Folder Name (e.g. Finance, Maths)", color = Color(0xFF5C5850)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFC88A4B),
+                        unfocusedBorderColor = Color(0xFFE2D7C5),
+                        focusedTextColor = Color(0xFF2D2B28),
+                        unfocusedTextColor = Color(0xFF2D2B28)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Folder Topic / Icon", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TOPIC_ICON_OPTIONS.take(4).forEach { (iconKey, labelText) ->
+                        FilterChip(
+                            selected = selectedIcon == iconKey,
+                            onClick = { selectedIcon = iconKey },
+                            label = { Text(labelText, fontSize = 10.sp) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Folder Accent Color", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    colors.forEach { c ->
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(c))
+                                .border(if (selectedColor == c) 2.5.dp else 0.dp, Color(0xFFC88A4B), CircleShape)
+                                .clickable { selectedColor = c }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = shouldLock,
+                        onCheckedChange = { shouldLock = it },
+                        colors = CheckboxDefaults.colors(checkedColor = Color(0xFFC88A4B))
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Column {
+                        Text("Lock Folder with PIN", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2D2B28))
+                        Text("You will be asked to set a 4-digit PIN & security question", fontSize = 10.sp, color = Color(0xFF5C5850))
+                    }
+                }
+            }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (folderName.isNotBlank()) onCreate(folderName)
+                    if (folderName.isNotBlank()) onCreate(folderName, selectedColor, selectedIcon, shouldLock)
                 }
             ) {
                 Text("Create Folder", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)

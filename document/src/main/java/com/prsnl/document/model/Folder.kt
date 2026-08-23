@@ -8,6 +8,7 @@ data class Folder(
     val name: String,
     val createdAt: Long = System.currentTimeMillis(),
     val color: Int = 0xFF4B5563.toInt(),
+    val iconName: String = "FOLDER",
     val isLocked: Boolean = false,
     val pin: String? = null,
     val securityQuestion: String? = null,

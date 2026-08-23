@@ -9,6 +9,7 @@ data class FolderEntity(
     val name: String,
     val createdAt: Long,
     val color: Int,
+    val iconName: String = "FOLDER",
     val isLocked: Boolean = false,
     val pin: String? = null,
     val securityQuestion: String? = null,

@@ -28,37 +28,45 @@ class HomeViewModel(
 
     private val _folders = MutableStateFlow<List<Folder>>(
         listOf(
-            Folder("f1", "Finance", color = 0xFF4C6EF5.toInt()),
-            Folder("f2", "Personal", color = 0xFFC85A32.toInt()),
-            Folder("f3", "Work", color = 0xFF4A7C59.toInt())
+            Folder("f1", "Finance", color = 0xFF8B5E3C.toInt(), iconName = "FINANCE"),
+            Folder("f2", "Personal", color = 0xFFC85A32.toInt(), iconName = "PERSONAL"),
+            Folder("f3", "Work", color = 0xFF4A7C59.toInt(), iconName = "WORK"),
+            Folder("f4", "Maths", color = 0xFF4C6EF5.toInt(), iconName = "MATHS"),
+            Folder("f5", "Physics", color = 0xFFC88A4B.toInt(), iconName = "PHYSICS")
         )
     )
     val folders: StateFlow<List<Folder>> = _folders.asStateFlow()
 
-    fun createFolder(name: String, color: Int = 0xFF4B5563.toInt()) {
-        if (name.isBlank()) return
+    fun createFolder(name: String, color: Int = 0xFF8B5E3C.toInt(), iconName: String = "FOLDER"): Folder {
+        val trimmed = name.trim().ifBlank { "Untitled Folder" }
         val current = _folders.value
-        if (current.any { it.name.equals(name.trim(), ignoreCase = true) }) return
+        val existing = current.find { it.name.equals(trimmed, ignoreCase = true) }
+        if (existing != null) return existing
 
         val newFolder = Folder(
             id = UUID.randomUUID().toString(),
-            name = name.trim(),
+            name = trimmed,
             createdAt = System.currentTimeMillis(),
-            color = color
+            color = color,
+            iconName = iconName
         )
         _folders.value = current + newFolder
+        return newFolder
     }
 
-    fun updateFolder(folderId: String, oldName: String, newName: String, newColor: Int) {
+    fun updateFolder(folderId: String, oldName: String, newName: String, newColor: Int, newIconName: String = "FOLDER") {
         if (newName.isBlank()) return
         val current = _folders.value.toMutableList()
         val index = current.indexOfFirst { it.id == folderId || it.name == oldName }
         if (index != -1) {
-            val updatedFolder = current[index].copy(name = newName.trim(), color = newColor)
+            val updatedFolder = current[index].copy(
+                name = newName.trim(),
+                color = newColor,
+                iconName = newIconName
+            )
             current[index] = updatedFolder
             _folders.value = current
 
-            // Also update any child notebooks
             viewModelScope.launch {
                 val allNbs = notebooks.value
                 allNbs.filter { it.folderName.equals(oldName, ignoreCase = true) }.forEach { nb ->
@@ -102,7 +110,8 @@ class HomeViewModel(
     fun createNotebook(
         title: String,
         folderName: String = "General",
-        coverColor: Int = 0xFF4B5563.toInt(),
+        coverColor: Int = 0xFF8B5E3C.toInt(),
+        coverStyle: String = "DEFAULT",
         backgroundType: Background.Type = Background.Type.RULED,
         paperColor: Int = 0xFFFAF8F5.toInt(),
         onCreated: ((notebookId: String, firstPageId: String) -> Unit)? = null
@@ -136,6 +145,7 @@ class HomeViewModel(
                 createdAt = now,
                 updatedAt = now,
                 coverColor = coverColor,
+                coverStyle = coverStyle,
                 folderName = safeFolderName,
                 pages = listOf(pageId)
             )
@@ -145,11 +155,12 @@ class HomeViewModel(
         }
     }
 
-    fun updateNotebook(notebook: Notebook, newTitle: String, newCoverColor: Int, newFolderName: String) {
+    fun updateNotebook(notebook: Notebook, newTitle: String, newCoverColor: Int, newFolderName: String, newCoverStyle: String = "DEFAULT") {
         viewModelScope.launch {
             val updated = notebook.copy(
                 title = newTitle.ifBlank { notebook.title },
                 coverColor = newCoverColor,
+                coverStyle = newCoverStyle,
                 folderName = newFolderName.ifBlank { notebook.folderName },
                 updatedAt = System.currentTimeMillis()
             )

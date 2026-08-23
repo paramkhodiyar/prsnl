@@ -63,7 +63,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -73,10 +72,23 @@ import androidx.compose.ui.unit.sp
 import com.prsnl.document.model.Background
 import com.prsnl.document.model.Notebook
 import com.prsnl.pdf.PdfImporter
+import com.prsnl.ui.common.AppToastBanner
+import com.prsnl.ui.common.ToastMessage
+import com.prsnl.ui.common.ToastType
 import com.prsnl.ui.home.HomeViewModel
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+
+val TOPIC_ICON_OPTIONS = listOf(
+    Pair("DEFAULT", "Notebook"),
+    Pair("DIARY", "Diary"),
+    Pair("MATHS", "Maths"),
+    Pair("PHYSICS", "Physics"),
+    Pair("FINANCE", "Finance"),
+    Pair("WORK", "Work"),
+    Pair("PERSONAL", "Personal")
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +103,7 @@ fun FolderDetailScreen(
     var showCreateNotebookDialog by remember { mutableStateOf(false) }
     var selectedNotebookForMenu by remember { mutableStateOf<Notebook?>(null) }
     val context = LocalContext.current
+    var activeToast by remember { mutableStateOf<ToastMessage?>(null) }
 
     val folderNotebooks = remember(allNotebooks, folderName) {
         allNotebooks.filter { it.folderName.equals(folderName, ignoreCase = true) }
@@ -113,11 +126,12 @@ fun FolderDetailScreen(
                 val result = pdfImporter.importPdfToNotebook(tempPdfFile)
                 if (result != null) {
                     val (notebook, pages) = result
-                    pages.forEach { p -> viewModel.createFolder(folderName) }
+                    pages.forEach { _ -> viewModel.createFolder(folderName) }
+                    activeToast = ToastMessage("PDF imported successfully", ToastType.SUCCESS)
                     onNotebookClick(notebook.id)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("FolderDetailScreen", "Failed to import PDF file", e)
+                activeToast = ToastMessage("Failed to import PDF", ToastType.ERROR)
             }
         }
     }
@@ -149,9 +163,10 @@ fun FolderDetailScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FloatingActionButton(
                         onClick = { pdfPickerLauncher.launch("application/pdf") },
-                        containerColor = Color(0xFF4C6EF5),
-                        contentColor = Color.White,
-                        shape = RoundedCornerShape(16.dp)
+                        containerColor = Color(0xFFF5F0E6),
+                        contentColor = Color(0xFFC88A4B),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.border(1.5.dp, Color(0xFFC88A4B), RoundedCornerShape(16.dp))
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp),
@@ -170,11 +185,11 @@ fun FolderDetailScreen(
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 18.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Default.Add, contentDescription = "New Notebook")
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text("New Notebook", fontWeight = FontWeight.Bold)
                         }
                     }
@@ -186,49 +201,57 @@ fun FolderDetailScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                val columnCount = if (maxWidth > 700.dp) 4 else 2
+                val columnCount = if (maxWidth > 900.dp) 4 else if (maxWidth > 600.dp) 3 else 2
 
-                AnimatedContent(
-                    targetState = folderNotebooks,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "NotebookGridTransition"
-                ) { notebooksToRender ->
-                    if (notebooksToRender.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.Create,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(56.dp),
-                                    tint = Color(0xFF8E887E)
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "No notebooks in '$folderName'.\nTap '+ New Notebook' or 'Import PDF'!",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color(0xFF5C5850)
-                                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AnimatedContent(
+                        targetState = folderNotebooks,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "NotebookGridTransition"
+                    ) { notebooksToRender ->
+                        if (notebooksToRender.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        Icons.Default.Create,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(56.dp),
+                                        tint = Color(0xFF8E887E)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "No notebooks in '$folderName'.\nTap '+ New Notebook' to create one!",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color(0xFF5C5850)
+                                    )
+                                }
                             }
-                        }
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(columnCount),
-                            contentPadding = PaddingValues(24.dp),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            items(notebooksToRender, key = { it.id }) { notebook ->
-                                NotebookItemCard(
-                                    notebook = notebook,
-                                    onClick = { onNotebookClick(notebook.id) },
-                                    onLongClick = { selectedNotebookForMenu = notebook }
-                                )
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(columnCount),
+                                contentPadding = PaddingValues(24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(20.dp)
+                            ) {
+                                items(notebooksToRender, key = { it.id }) { notebook ->
+                                    NotebookCard(
+                                        notebook = notebook,
+                                        onClick = { onNotebookClick(notebook.id) },
+                                        onLongClick = { selectedNotebookForMenu = notebook }
+                                    )
+                                }
                             }
                         }
                     }
+
+                    AppToastBanner(
+                        toast = activeToast,
+                        onDismiss = { activeToast = null },
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
                 }
             }
         }
@@ -237,32 +260,39 @@ fun FolderDetailScreen(
             CreateNotebookFullModal(
                 folderName = folderName,
                 onDismiss = { showCreateNotebookDialog = false },
-                onCreate = { title, coverColor, bgType, paperColor ->
+                onCreate = { title, coverColor, coverStyle, bgType, paperColor ->
                     viewModel.createNotebook(
                         title = title,
                         folderName = folderName,
                         coverColor = coverColor,
+                        coverStyle = coverStyle,
                         backgroundType = bgType,
                         paperColor = paperColor,
-                        onCreated = { nbId, _ -> onNotebookClick(nbId) }
+                        onCreated = { notebookId, _ ->
+                            showCreateNotebookDialog = false
+                            activeToast = ToastMessage("Notebook created successfully", ToastType.SUCCESS)
+                            onNotebookClick(notebookId)
+                        }
                     )
-                    showCreateNotebookDialog = false
                 }
             )
         }
 
         if (selectedNotebookForMenu != null) {
+            val targetNb = selectedNotebookForMenu!!
             NotebookContextMenuModal(
-                notebook = selectedNotebookForMenu!!,
-                availableFolders = allFolders.map { it.name }.distinct(),
+                notebook = targetNb,
+                availableFolders = allFolders.map { it.name },
                 onDismiss = { selectedNotebookForMenu = null },
-                onUpdate = { newTitle, newColor, newFolder ->
-                    viewModel.updateNotebook(selectedNotebookForMenu!!, newTitle, newColor, newFolder)
+                onUpdate = { newTitle, newColor, newFolder, newCoverStyle ->
+                    viewModel.updateNotebook(targetNb, newTitle, newColor, newFolder, newCoverStyle)
                     selectedNotebookForMenu = null
+                    activeToast = ToastMessage("Notebook updated successfully", ToastType.SUCCESS)
                 },
                 onDelete = {
-                    viewModel.deleteNotebook(selectedNotebookForMenu!!.id)
+                    viewModel.deleteNotebook(targetNb.id)
                     selectedNotebookForMenu = null
+                    activeToast = ToastMessage("Notebook deleted", ToastType.INFO)
                 }
             )
         }
@@ -270,7 +300,7 @@ fun FolderDetailScreen(
 }
 
 @Composable
-fun NotebookItemCard(
+fun NotebookCard(
     notebook: Notebook,
     onClick: () -> Unit,
     onLongClick: () -> Unit
@@ -280,7 +310,7 @@ fun NotebookItemCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(230.dp)
+            .height(210.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onClick() },
@@ -288,40 +318,48 @@ fun NotebookItemCard(
                 )
             },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F0E6)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F0E6))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Notebook Cover Surface with clean solid color and spine line (No Gradients, No Shadows)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(150.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(coverColor, coverColor.copy(alpha = 0.85f))
-                        )
-                    )
+                    .background(coverColor)
             ) {
+                // Spine accent line
                 Box(
                     modifier = Modifier
-                        .width(10.dp)
+                        .width(8.dp)
                         .fillMaxHeight()
                         .background(Color(0x33000000))
                 )
+                // Center Title Badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(horizontal = 16.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0x22FFFFFF))
+                        .border(1.dp, Color(0x44FFFFFF), RoundedCornerShape(8.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(
-                        text = notebook.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Create,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = notebook.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
 
@@ -355,11 +393,12 @@ fun NotebookContextMenuModal(
     notebook: Notebook,
     availableFolders: List<String>,
     onDismiss: () -> Unit,
-    onUpdate: (newTitle: String, newColor: Int, newFolder: String) -> Unit,
+    onUpdate: (newTitle: String, newColor: Int, newFolder: String, newCoverStyle: String) -> Unit,
     onDelete: () -> Unit
 ) {
     var title by remember { mutableStateOf(notebook.title) }
     var selectedColor by remember { mutableIntStateOf(notebook.coverColor) }
+    var selectedStyle by remember { mutableStateOf(notebook.coverStyle) }
     var selectedFolder by remember { mutableStateOf(notebook.folderName) }
 
     val colors = listOf(
@@ -392,15 +431,28 @@ fun NotebookContextMenuModal(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
-                Text("Cover Theme Color", fontSize = 12.sp, color = Color(0xFF5C5850))
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Notebook Topic / Icon", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TOPIC_ICON_OPTIONS.take(4).forEach { (iconKey, labelText) ->
+                        FilterChip(
+                            selected = selectedStyle == iconKey,
+                            onClick = { selectedStyle = iconKey },
+                            label = { Text(labelText, fontSize = 10.sp) }
+                        )
+                    }
+                }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Cover Theme Color", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     colors.forEach { c ->
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
                                 .background(Color(c))
                                 .border(
@@ -413,9 +465,9 @@ fun NotebookContextMenuModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-                Text("Folder Location", fontSize = 12.sp, color = Color(0xFF5C5850))
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Folder Location", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     val allF = (listOf(notebook.folderName) + availableFolders).distinct()
@@ -423,7 +475,7 @@ fun NotebookContextMenuModal(
                         FilterChip(
                             selected = selectedFolder == fName,
                             onClick = { selectedFolder = fName },
-                            label = { Text(fName, fontSize = 11.sp) }
+                            label = { Text(fName, fontSize = 10.sp) }
                         )
                     }
                 }
@@ -434,7 +486,7 @@ fun NotebookContextMenuModal(
                 TextButton(onClick = onDelete) {
                     Text("Delete Notebook", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
                 }
-                TextButton(onClick = { onUpdate(title, selectedColor, selectedFolder) }) {
+                TextButton(onClick = { onUpdate(title, selectedColor, selectedFolder, selectedStyle) }) {
                     Text("Save Changes", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
                 }
             }
@@ -451,10 +503,11 @@ fun NotebookContextMenuModal(
 fun CreateNotebookFullModal(
     folderName: String,
     onDismiss: () -> Unit,
-    onCreate: (title: String, coverColor: Int, bgType: Background.Type, paperColor: Int) -> Unit
+    onCreate: (title: String, coverColor: Int, coverStyle: String, bgType: Background.Type, paperColor: Int) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var selectedCoverColor by remember { mutableIntStateOf(0xFF8B5E3C.toInt()) }
+    var selectedCoverStyle by remember { mutableStateOf("DEFAULT") }
     var selectedPaperType by remember { mutableStateOf(Background.Type.MARGIN_RULED) }
     var selectedPaperColor by remember { mutableIntStateOf(0xFFFAF8F5.toInt()) }
 
@@ -486,7 +539,7 @@ fun CreateNotebookFullModal(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Notebook Name (e.g. Maths, Microeconomics)", color = Color(0xFF5C5850)) },
+                    label = { Text("Notebook Name (e.g. Maths, Physics)", color = Color(0xFF5C5850)) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFFC88A4B),
@@ -496,6 +549,19 @@ fun CreateNotebookFullModal(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Notebook Topic / Icon", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TOPIC_ICON_OPTIONS.take(4).forEach { (iconKey, labelText) ->
+                        FilterChip(
+                            selected = selectedCoverStyle == iconKey,
+                            onClick = { selectedCoverStyle = iconKey },
+                            label = { Text(labelText, fontSize = 10.sp) }
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
                 Text("Cover Theme Color", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
@@ -514,7 +580,7 @@ fun CreateNotebookFullModal(
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                Text("Paper Template Format", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
+                Text("Paper Format", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     FilterChip(
@@ -536,11 +602,6 @@ fun CreateNotebookFullModal(
                         selected = selectedPaperType == Background.Type.CORNELL,
                         onClick = { selectedPaperType = Background.Type.CORNELL },
                         label = { Text("Cornell", fontSize = 10.sp) }
-                    )
-                    FilterChip(
-                        selected = selectedPaperType == Background.Type.ISOMETRIC,
-                        onClick = { selectedPaperType = Background.Type.ISOMETRIC },
-                        label = { Text("3D Grid", fontSize = 10.sp) }
                     )
                 }
 
@@ -564,7 +625,7 @@ fun CreateNotebookFullModal(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (title.isNotBlank()) onCreate(title, selectedCoverColor, selectedPaperType, selectedPaperColor)
+                    if (title.isNotBlank()) onCreate(title, selectedCoverColor, selectedCoverStyle, selectedPaperType, selectedPaperColor)
                 }
             ) {
                 Text("Create Notebook", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
