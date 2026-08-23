@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.prsnl.document.repository.FolderRepository
 import com.prsnl.document.repository.NotebookRepository
 import com.prsnl.ui.editor.PageEditorScreen
 import com.prsnl.ui.editor.PageEditorViewModel
@@ -19,7 +20,8 @@ import com.prsnl.ui.home.HomeViewModel
 
 @Composable
 fun PrsnlAppNavHost(
-    repository: NotebookRepository
+    notebookRepository: NotebookRepository,
+    folderRepository: FolderRepository
 ) {
     val navController = rememberNavController()
 
@@ -33,7 +35,7 @@ fun PrsnlAppNavHost(
     ) {
         // Level 1: Folders Grid
         composable("home") {
-            val homeViewModel = HomeViewModel(repository)
+            val homeViewModel = HomeViewModel(notebookRepository, folderRepository)
             HomeScreen(
                 viewModel = homeViewModel,
                 onFolderClick = { folderName ->
@@ -47,8 +49,8 @@ fun PrsnlAppNavHost(
             route = "folder_detail/{folderName}",
             arguments = listOf(navArgument("folderName") { type = NavType.StringType })
         ) { backStackEntry ->
-            val folderName = backStackEntry.arguments?.getString("folderName") ?: "General"
-            val homeViewModel = HomeViewModel(repository)
+            val folderName = backStackEntry.arguments?.getString("folderName") ?: "Personal"
+            val homeViewModel = HomeViewModel(notebookRepository, folderRepository)
             FolderDetailScreen(
                 folderName = folderName,
                 viewModel = homeViewModel,
@@ -65,7 +67,7 @@ fun PrsnlAppNavHost(
             arguments = listOf(navArgument("pageId") { type = NavType.StringType })
         ) { backStackEntry ->
             val pageId = backStackEntry.arguments?.getString("pageId") ?: ""
-            val editorViewModel = PageEditorViewModel(repository, pageId)
+            val editorViewModel = PageEditorViewModel(notebookRepository, pageId)
             PageEditorScreen(
                 viewModel = editorViewModel,
                 onBackClick = { navController.popBackStack() }

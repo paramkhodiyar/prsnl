@@ -109,19 +109,9 @@ fun HomeScreen(
     var folderToResetPin by remember { mutableStateOf<Folder?>(null) }
     var pendingCreationLockFolder by remember { mutableStateOf<Folder?>(null) }
 
-    val displayFolders = remember(dbFolders) {
-        if (dbFolders.isEmpty()) {
-            listOf(
-                Folder("f1", "Finance", color = 0xFF8B5E3C.toInt(), iconName = "FINANCE"),
-                Folder("f2", "Personal", color = 0xFFC85A32.toInt(), iconName = "PERSONAL"),
-                Folder("f3", "Work", color = 0xFF4A7C59.toInt(), iconName = "WORK")
-            )
-        } else dbFolders
-    }
-
-    val filteredFolders = remember(displayFolders, searchQuery) {
-        if (searchQuery.isBlank()) displayFolders
-        else displayFolders.filter { it.name.contains(searchQuery, ignoreCase = true) }
+    val filteredFolders = remember(dbFolders, searchQuery) {
+        if (searchQuery.isBlank()) dbFolders
+        else dbFolders.filter { it.name.contains(searchQuery, ignoreCase = true) }
     }
 
     Surface(
@@ -421,7 +411,7 @@ fun HomeScreen(
 
         if (showSettingsModal) {
             AppSettingsModal(
-                lockedFolders = displayFolders.filter { it.isLocked },
+                lockedFolders = dbFolders.filter { it.isLocked },
                 onResetFolderPin = { folder ->
                     showSettingsModal = false
                     folderToResetPin = folder

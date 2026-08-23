@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.prsnl.document.repository.FolderRepository
 import com.prsnl.document.repository.NotebookRepository
 import com.prsnl.ui.navigation.PrsnlAppNavHost
 import dagger.hilt.android.AndroidEntryPoint
@@ -18,6 +19,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var notebookRepository: NotebookRepository
 
+    @Inject
+    lateinit var folderRepository: FolderRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -27,7 +31,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    PrsnlAppNavHost(repository = notebookRepository)
+                    PrsnlAppNavHost(
+                        notebookRepository = notebookRepository,
+                        folderRepository = folderRepository
+                    )
                 }
             }
         }

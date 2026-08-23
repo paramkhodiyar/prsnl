@@ -6,17 +6,18 @@ import com.prsnl.document.model.Background
 import com.prsnl.document.model.Folder
 import com.prsnl.document.model.Notebook
 import com.prsnl.document.model.Page
+import com.prsnl.document.repository.FolderRepository
 import com.prsnl.document.repository.NotebookRepository
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
 class HomeViewModel(
-    private val notebookRepository: NotebookRepository
+    private val notebookRepository: NotebookRepository,
+    private val folderRepository: FolderRepository
 ) : ViewModel() {
 
     val notebooks: StateFlow<List<Notebook>> = notebookRepository.getAllNotebooks()
@@ -26,21 +27,44 @@ class HomeViewModel(
             initialValue = emptyList()
         )
 
-    private val _folders = MutableStateFlow<List<Folder>>(
-        listOf(
-            Folder("f1", "Finance", color = 0xFF8B5E3C.toInt(), iconName = "FINANCE"),
-            Folder("f2", "Personal", color = 0xFFC85A32.toInt(), iconName = "PERSONAL"),
-            Folder("f3", "Work", color = 0xFF4A7C59.toInt(), iconName = "WORK"),
-            Folder("f4", "Maths", color = 0xFF4C6EF5.toInt(), iconName = "MATHS"),
-            Folder("f5", "Physics", color = 0xFFC88A4B.toInt(), iconName = "PHYSICS")
+    val folders: StateFlow<List<Folder>> = folderRepository.getAllFolders()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = emptyList()
         )
-    )
-    val folders: StateFlow<List<Folder>> = _folders.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val existingFolders = folderRepository.getAllFolders().first()
+            if (existingFolders.isEmpty()) {
+                val defaultFolder = Folder(
+                    id = UUID.randomUUID().toString(),
+                    name = "Personal",
+                    createdAt = System.currentTimeMillis(),
+                    color = 0xFFC85A32.toInt(),
+                    iconName = "PERSONAL"
+                )
+                folderRepository.saveFolder(defaultFolder)
+
+                val existingNotebooks = notebookRepository.getAllNotebooks().first()
+                if (existingNotebooks.isEmpty()) {
+                    createNotebook(
+                        title = "Personal",
+                        folderName = "Personal",
+                        coverColor = 0xFFC85A32.toInt(),
+                        coverStyle = "PERSONAL",
+                        backgroundType = Background.Type.MARGIN_RULED,
+                        paperColor = 0xFFFAF8F5.toInt()
+                    )
+                }
+            }
+        }
+    }
 
     fun createFolder(name: String, color: Int = 0xFF8B5E3C.toInt(), iconName: String = "FOLDER"): Folder {
         val trimmed = name.trim().ifBlank { "Untitled Folder" }
-        val current = _folders.value
-        val existing = current.find { it.name.equals(trimmed, ignoreCase = true) }
+        val existing = folders.value.find { it.name.equals(trimmed, ignoreCase = true) }
         if (existing != null) return existing
 
         val newFolder = Folder(
@@ -50,28 +74,25 @@ class HomeViewModel(
             color = color,
             iconName = iconName
         )
-        _folders.value = current + newFolder
+        viewModelScope.launch {
+            folderRepository.saveFolder(newFolder)
+        }
         return newFolder
     }
 
     fun updateFolder(folderId: String, oldName: String, newName: String, newColor: Int, newIconName: String = "FOLDER") {
         if (newName.isBlank()) return
-        val current = _folders.value.toMutableList()
-        val index = current.indexOfFirst { it.id == folderId || it.name == oldName }
-        if (index != -1) {
-            val updatedFolder = current[index].copy(
-                name = newName.trim(),
-                color = newColor,
-                iconName = newIconName
-            )
-            current[index] = updatedFolder
-            _folders.value = current
-
-            viewModelScope.launch {
-                val allNbs = notebooks.value
-                allNbs.filter { it.folderName.equals(oldName, ignoreCase = true) }.forEach { nb ->
-                    notebookRepository.saveNotebook(nb.copy(folderName = newName.trim()))
-                }
+        val existing = folders.value.find { it.id == folderId || it.name.equals(oldName, ignoreCase = true) } ?: return
+        val updated = existing.copy(
+            name = newName.trim(),
+            color = newColor,
+            iconName = newIconName
+        )
+        viewModelScope.launch {
+            folderRepository.saveFolder(updated)
+            val allNbs = notebooks.value
+            allNbs.filter { it.folderName.equals(oldName, ignoreCase = true) }.forEach { nb ->
+                notebookRepository.saveNotebook(nb.copy(folderName = newName.trim()))
             }
         }
     }
@@ -83,23 +104,21 @@ class HomeViewModel(
         securityQuestion: String? = null,
         securityAnswerHash: String? = null
     ) {
-        val current = _folders.value.toMutableList()
-        val index = current.indexOfFirst { it.id == folderId }
-        if (index != -1) {
-            val updatedFolder = current[index].copy(
-                isLocked = isLocked,
-                pin = if (isLocked) pin else null,
-                securityQuestion = if (isLocked) securityQuestion else null,
-                securityAnswerHash = if (isLocked) securityAnswerHash else null
-            )
-            current[index] = updatedFolder
-            _folders.value = current
+        val existing = folders.value.find { it.id == folderId } ?: return
+        val updated = existing.copy(
+            isLocked = isLocked,
+            pin = if (isLocked) pin else null,
+            securityQuestion = if (isLocked) securityQuestion else null,
+            securityAnswerHash = if (isLocked) securityAnswerHash else null
+        )
+        viewModelScope.launch {
+            folderRepository.saveFolder(updated)
         }
     }
 
     fun deleteFolder(folderId: String, folderName: String) {
-        _folders.value = _folders.value.filterNot { it.id == folderId || it.name.equals(folderName, ignoreCase = true) }
         viewModelScope.launch {
+            folderRepository.deleteFolder(folderId)
             val allNbs = notebooks.value
             allNbs.filter { it.folderName.equals(folderName, ignoreCase = true) }.forEach { nb ->
                 notebookRepository.deleteNotebook(nb.id)
@@ -109,7 +128,7 @@ class HomeViewModel(
 
     fun createNotebook(
         title: String,
-        folderName: String = "General",
+        folderName: String = "Personal",
         coverColor: Int = 0xFF8B5E3C.toInt(),
         coverStyle: String = "DEFAULT",
         backgroundType: Background.Type = Background.Type.RULED,
@@ -121,7 +140,7 @@ class HomeViewModel(
             val pageId = UUID.randomUUID().toString()
             val now = System.currentTimeMillis()
 
-            val safeFolderName = if (folderName.isBlank()) "General" else folderName.trim()
+            val safeFolderName = if (folderName.isBlank()) "Personal" else folderName.trim()
             createFolder(safeFolderName)
 
             val firstPage = Page(
