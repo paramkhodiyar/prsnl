@@ -364,10 +364,10 @@ fun PageEditorScreen(
                                                 }
                                                 this.onAutoStylusSwitch = {
                                                     val current = viewModel.toolMode.value
-                                                    val isInkTool = current == CanvasToolMode.PEN ||
+                                                    val isWritingOrDrawing = current == CanvasToolMode.PEN ||
                                                         current == CanvasToolMode.PENCIL ||
                                                         current == CanvasToolMode.HIGHLIGHTER
-                                                    if (!isInkTool) {
+                                                    if (!isWritingOrDrawing && current != CanvasToolMode.SELECT && current != CanvasToolMode.LASSO) {
                                                         viewModel.setToolMode(CanvasToolMode.PEN)
                                                     }
                                                 }

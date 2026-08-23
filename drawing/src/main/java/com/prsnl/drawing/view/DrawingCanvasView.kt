@@ -217,7 +217,13 @@ class DrawingCanvasView @JvmOverloads constructor(
 
     init {
         inputFilter.onStylusDetected = {
-            onAutoStylusSwitch?.invoke()
+            val isTransformingSelection = selectedElement != null ||
+                lassoSelectedElements.isNotEmpty() ||
+                currentToolMode == CanvasToolMode.SELECT ||
+                currentToolMode == CanvasToolMode.LASSO
+            if (!isTransformingSelection) {
+                onAutoStylusSwitch?.invoke()
+            }
         }
     }
 
