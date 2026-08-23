@@ -109,6 +109,18 @@ fun HomeScreen(
     var folderToResetPin by remember { mutableStateOf<Folder?>(null) }
     var pendingCreationLockFolder by remember { mutableStateOf<Folder?>(null) }
 
+    // Home PDF Import Launcher
+    val homePdfPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.importPdf(context, uri, "PDF Annotations") { _ ->
+                activeToast = ToastMessage("PDF imported successfully", ToastType.SUCCESS)
+                onFolderClick("PDF Annotations")
+            }
+        }
+    }
+
     val filteredFolders = remember(dbFolders, searchQuery) {
         if (searchQuery.isBlank()) dbFolders
         else dbFolders.filter { it.name.contains(searchQuery, ignoreCase = true) }
@@ -163,6 +175,13 @@ fun HomeScreen(
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { homePdfPickerLauncher.launch("application/pdf") }) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Import PDF",
+                                    tint = Color(0xFF4C6EF5)
+                                )
+                            }
                             IconButton(onClick = { showSettingsModal = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Settings,

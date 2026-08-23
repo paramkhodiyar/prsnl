@@ -1,5 +1,7 @@
 package com.prsnl.ui.home
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.prsnl.document.model.Background
@@ -8,11 +10,14 @@ import com.prsnl.document.model.Notebook
 import com.prsnl.document.model.Page
 import com.prsnl.document.repository.FolderRepository
 import com.prsnl.document.repository.NotebookRepository
+import com.prsnl.pdf.PdfImporter
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 
 class HomeViewModel(
@@ -171,6 +176,50 @@ class HomeViewModel(
             notebookRepository.saveNotebook(newNotebook)
 
             onCreated?.invoke(notebookId, pageId)
+        }
+    }
+
+    fun importPdf(
+        context: Context,
+        uri: Uri,
+        folderName: String,
+        onImported: (notebookId: String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val tempPdfFile = File(context.cacheDir, "import_${UUID.randomUUID()}.pdf")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tempPdfFile).use { output -> input.copyTo(output) }
+                }
+
+                val pdfImporter = PdfImporter(context)
+                val result = pdfImporter.importPdfToNotebook(tempPdfFile)
+                if (result != null) {
+                    val (notebook, pages) = result
+                    val safeFolder = if (folderName.isBlank()) "PDF Annotations" else folderName.trim()
+                    createFolder(safeFolder)
+
+                    val updatedNotebook = notebook.copy(
+                        folderName = safeFolder,
+                        coverStyle = "PDF",
+                        coverColor = 0xFF4C6EF5.toInt()
+                    )
+
+                    // 1. Save all PDF pages to PageFileStorage and Room SQLite DB
+                    for (page in pages) {
+                        notebookRepository.savePage(page)
+                    }
+                    // 2. Save parent notebook model to Room SQLite DB
+                    notebookRepository.saveNotebook(updatedNotebook)
+
+                    // 3. Open the newly imported PDF notebook immediately!
+                    onImported(updatedNotebook.id)
+                } else {
+                    android.util.Log.e("HomeViewModel", "PdfImporter returned null for file ${tempPdfFile.name}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Failed to import PDF file", e)
+            }
         }
     }
 

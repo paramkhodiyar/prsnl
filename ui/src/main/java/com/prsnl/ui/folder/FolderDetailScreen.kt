@@ -114,24 +114,9 @@ fun FolderDetailScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                val tempPdfFile = File(context.cacheDir, "import_${UUID.randomUUID()}.pdf")
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val outputStream = FileOutputStream(tempPdfFile)
-                inputStream?.copyTo(outputStream)
-                inputStream?.close()
-                outputStream.close()
-
-                val pdfImporter = PdfImporter(context)
-                val result = pdfImporter.importPdfToNotebook(tempPdfFile)
-                if (result != null) {
-                    val (notebook, pages) = result
-                    pages.forEach { _ -> viewModel.createFolder(folderName) }
-                    activeToast = ToastMessage("PDF imported successfully", ToastType.SUCCESS)
-                    onNotebookClick(notebook.id)
-                }
-            } catch (e: Exception) {
-                activeToast = ToastMessage("Failed to import PDF", ToastType.ERROR)
+            viewModel.importPdf(context, uri, folderName) { notebookId ->
+                activeToast = ToastMessage("PDF imported successfully", ToastType.SUCCESS)
+                onNotebookClick(notebookId)
             }
         }
     }
