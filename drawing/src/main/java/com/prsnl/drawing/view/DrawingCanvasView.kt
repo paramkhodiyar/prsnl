@@ -79,7 +79,7 @@ class DrawingCanvasView @JvmOverloads constructor(
             invalidate()
         }
 
-    var isFingerDrawingEnabled: Boolean = true
+    var isFingerDrawingEnabled: Boolean = false
     var isPressureSensitivityEnabled: Boolean = true
 
     var onCommandIssued: ((Command) -> Unit)? = null

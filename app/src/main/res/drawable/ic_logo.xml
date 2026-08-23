@@ -4,31 +4,29 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Background rounded tile -->
     <path
-        android:fillColor="#0F172A"
-        android:pathData="M16,16 h76 a12,12 0 0 1 12,12 v52 a12,12 0 0 1 -12,12 h-76 a12,12 0 0 1 -12,-12 v-52 a12,12 0 0 1 12,-12 Z" />
+        android:fillColor="#171513"
+        android:pathData="M24,5 L84,5 Q103,5 103,24 L103,84 Q103,103 84,103 L24,103 Q5,103 5,84 L5,24 Q5,5 24,5 Z" />
 
-    <!-- Notebook Page Base -->
     <path
-        android:fillColor="#1E293B"
-        android:pathData="M24,24 h60 a8,8 0 0 1 8,8 v44 a8,8 0 0 1 -8,8 h-60 a8,8 0 0 1 -8,-8 v-44 a8,8 0 0 1 8,-8 Z" />
+        android:fillColor="#211E1A"
+        android:pathData="M27,11 L81,11 Q97,11 97,27 L97,81 Q97,97 81,97 L27,97 Q11,97 11,81 L11,27 Q11,11 27,11 Z" />
 
-    <!-- Ruled notebook lines -->
     <path
-        android:strokeColor="#334155"
-        android:strokeWidth="2"
-        android:pathData="M32,36 h44 M32,46 h44 M32,56 h44 M32,66 h44" />
+        android:strokeColor="#F7F0E4"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M39,77 L39,35 Q39,28 47,28 L60,28 Q72,28 72,40 Q72,52 60,52 L39,52" />
 
-    <!-- Stylus Stroke Curve (Cyan Glow) -->
     <path
-        android:strokeColor="#38BDF8"
+        android:strokeColor="#C99A58"
         android:strokeWidth="4"
         android:strokeLineCap="round"
-        android:pathData="M36,62 Q 52,38 72,48" />
+        android:strokeLineJoin="round"
+        android:pathData="M51,67 C58,61 67,60 76,62" />
 
-    <!-- Stylus Pen Tip -->
     <path
-        android:fillColor="#38BDF8"
-        android:pathData="M70,42 L76,50 L68,48 Z" />
+        android:fillColor="#C99A58"
+        android:pathData="M77,60 L83,63 L76,66 Z" />
 </vector>

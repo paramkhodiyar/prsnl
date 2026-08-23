@@ -127,15 +127,13 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .size(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFF5F0E6))
-                                    .border(1.5.dp, Color(0xFFC88A4B), RoundedCornerShape(12.dp)),
+                                    .clip(RoundedCornerShape(13.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
                                     painter = painterResource(id = R.drawable.ic_logo_vector),
                                     contentDescription = "prsnl Logo",
-                                    modifier = Modifier.size(38.dp)
+                                    modifier = Modifier.size(46.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(14.dp))

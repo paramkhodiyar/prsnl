@@ -51,14 +51,21 @@ class PdfExporter {
             }
 
             pages.forEachIndexed { index, page ->
-                val pageWidth = page.width.toInt().coerceAtLeast(595)
-                val pageHeight = page.height.toInt().coerceAtLeast(842)
+                // Calculate page bounds to encompass all elements without cutting off any content
+                val maxElementRight = page.elements.maxOfOrNull { it.boundingBox.right + 40f } ?: page.width
+                val maxElementBottom = page.elements.maxOfOrNull { it.boundingBox.bottom + 40f } ?: page.height
+
+                val pageWidth = maxOf(page.width, maxElementRight).toInt().coerceAtLeast(595)
+                val pageHeight = maxOf(page.height, maxElementBottom).toInt().coerceAtLeast(842)
+
                 val pageInfo = PdfDocument.PageInfo.Builder(pageWidth, pageHeight, index + 1).create()
                 val pdfPage = pdfDocument.startPage(pageInfo)
                 val canvas = pdfPage.canvas
 
+                // 1. Draw Background
                 drawBackground(canvas, page.background, pageWidth.toFloat(), pageHeight.toFloat(), index, linePaint, marginPaint, textPaint)
 
+                // 2. Draw All Page Elements
                 for (element in page.elements) {
                     when (element) {
                         is Stroke -> drawStroke(canvas, element, strokePaint)

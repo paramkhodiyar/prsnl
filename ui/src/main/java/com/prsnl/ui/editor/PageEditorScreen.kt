@@ -95,7 +95,7 @@ fun PageEditorScreen(
     var selectedWidth by remember { mutableFloatStateOf(6f) }
     var eraserRadius by remember { mutableFloatStateOf(32f) }
     var selectedShapeType by remember { mutableStateOf(Shape.Type.RECTANGLE) }
-    var isFingerDrawingEnabled by remember { mutableStateOf(true) }
+    var isFingerDrawingEnabled by remember { mutableStateOf(false) }
     var isPressureSensitivityEnabled by remember { mutableStateOf(true) }
     var showSettingsModal by remember { mutableStateOf(false) }
     var showColorWheel by remember { mutableStateOf(false) }

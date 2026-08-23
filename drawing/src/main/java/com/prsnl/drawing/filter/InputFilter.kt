@@ -23,7 +23,7 @@ class InputFilter {
         return false
     }
 
-    fun shouldAcceptPointer(event: MotionEvent, pointerIndex: Int, isFingerDrawingEnabled: Boolean = true): Boolean {
+    fun shouldAcceptPointer(event: MotionEvent, pointerIndex: Int, isFingerDrawingEnabled: Boolean = false): Boolean {
         val toolType = event.getToolType(pointerIndex)
         val pointerId = event.getPointerId(pointerIndex)
         val currentTime = System.currentTimeMillis()
@@ -42,11 +42,11 @@ class InputFilter {
 
         // 2. Finger input handling:
         if (toolType == MotionEvent.TOOL_TYPE_FINGER) {
-            // Always allow finger touch when finger drawing is enabled by user
-            if (isFingerDrawingEnabled) {
-                return true
+            // When finger drawing is turned OFF (default), finger touches MUST NOT draw ink!
+            if (!isFingerDrawingEnabled) {
+                return false
             }
-            // Active Palm Rejection when finger drawing is disabled
+            // Active Palm Rejection when finger drawing is enabled but stylus is hovering/active
             val isStylusHovering = (currentTime - lastStylusHoverTimeMs) < 3000L
             if (isStylusActive || isStylusHovering) {
                 return false

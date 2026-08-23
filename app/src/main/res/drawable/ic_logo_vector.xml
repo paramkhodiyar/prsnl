@@ -5,78 +5,35 @@
     android:viewportWidth="512"
     android:viewportHeight="512">
 
-    <!-- Warm Dark Leather Rounded Tile Base -->
     <path
-        android:pathData="M108,0 L404,0 Q512,0 512,108 L512,404 Q512,512 404,512 L108,512 Q0,512 0,404 L0,108 Q0,0 108,0 Z"
-        android:fillColor="#1F1610" />
+        android:fillColor="#171513"
+        android:pathData="M112,24 L400,24 Q488,24 488,112 L488,400 Q488,488 400,488 L112,488 Q24,488 24,400 L24,112 Q24,24 112,24 Z" />
 
-    <!-- === LEATHER DIARY / NOTEBOOK PAGE (Behind Pen) === -->
-    <!-- Paper Base Card -->
     <path
-        android:pathData="M144,110 L346,110 Q370,110 370,134 L370,396 Q370,420 346,420 L144,420 Q120,420 120,396 L120,134 Q120,110 144,110 Z"
-        android:fillColor="#FAF6EE" />
+        android:fillColor="#211E1A"
+        android:pathData="M128,54 L384,54 Q458,54 458,128 L458,384 Q458,458 384,458 L128,458 Q54,458 54,384 L54,128 Q54,54 128,54 Z" />
 
-    <!-- Leather Spine Trim -->
     <path
-        android:pathData="M124,110 L154,110 Q154,110 154,110 L154,420 Q124,420 124,420 Z"
-        android:fillColor="#8B5E3C" />
+        android:strokeColor="#F7F0E4"
+        android:strokeWidth="34"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M184,364 L184,168 Q184,132 220,132 L284,132 Q342,132 342,190 Q342,248 284,248 L184,248" />
 
-    <!-- Red Margin Line -->
     <path
-        android:pathData="M184,110 L184,420"
-        android:strokeColor="#DC2626"
-        android:strokeWidth="4"
-        android:strokeAlpha="0.6" />
+        android:strokeColor="#C99A58"
+        android:strokeWidth="18"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M242,318 C276,292 316,284 360,294" />
 
-    <!-- Amber Bookmark Ribbon -->
     <path
-        android:pathData="M300,110 L300,230 L312,216 L324,230 L324,110 Z"
-        android:fillColor="#C88A4B" />
+        android:fillColor="#C99A58"
+        android:pathData="M364,286 L392,302 L360,312 Z" />
 
-    <!-- Ruled Page Lines -->
-    <path android:pathData="M196,180 L340,180" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
-    <path android:pathData="M196,220 L340,220" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
-    <path android:pathData="M196,260 L340,260" android:strokeColor="#C88A4B" strokeWidth="3" android:strokeAlpha="0.35" />
-    <path android:pathData="M196,300 L340,300" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
-    <path android:pathData="M196,340 L340,340" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
-    <path android:pathData="M196,380 L340,380" android:strokeColor="#C88A4B" android:strokeWidth="3" android:strokeAlpha="0.35" />
-
-    <!-- === SLEEK APPLE-PENCIL STYLE ACTIVE STYLUS === -->
-    <!-- Conical Tip -->
     <path
-        android:pathData="M96,404 L132,352 L152,372 Z"
-        android:fillColor="#FAF6EE" />
-
-    <!-- Tip Nib Point -->
-    <path
-        android:pathData="M94,406 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"
-        android:fillColor="#2D2B28" />
-
-    <!-- Metallic Gold Collar Ring -->
-    <path
-        android:pathData="M132,352 L152,372 L162,362 L142,342 Z"
-        android:fillColor="#C88A4B" />
-
-    <!-- Stylus Body -->
-    <path
-        android:pathData="M142,342 L162,362 L368,156 L348,136 Z"
-        android:fillColor="#F4EAD6" />
-
-    <!-- Flat Side Sensor Accent -->
-    <path
-        android:pathData="M156,338 L352,142"
-        android:strokeColor="#8B5E3C"
-        android:strokeWidth="3.5"
-        android:strokeAlpha="0.4" />
-
-    <!-- Top Metallic Band -->
-    <path
-        android:pathData="M348,136 L368,156 L378,146 L358,126 Z"
-        android:fillColor="#C88A4B" />
-
-    <!-- Flat Top Cap -->
-    <path
-        android:pathData="M358,126 L378,146 L394,130 L374,110 Z"
-        android:fillColor="#FAF6EE" />
-
+        android:strokeColor="#F7F0E4"
+        android:strokeAlpha="0.22"
+        android:strokeWidth="3"
+        android:pathData="M128,54 L384,54 Q458,54 458,128 L458,384 Q458,458 384,458 L128,458 Q54,458 54,384 L54,128 Q54,54 128,54 Z" />
 </vector>
