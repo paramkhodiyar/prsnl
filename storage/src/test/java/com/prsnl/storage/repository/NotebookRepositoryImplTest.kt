@@ -41,6 +41,8 @@ class NotebookRepositoryImplTest {
             val fakePageDao = object : PageDao {
                 override fun getPagesForNotebook(notebookId: String): Flow<List<PageEntity>> =
                     flowOf(fakePages.values.filter { it.notebookId == notebookId })
+                override suspend fun getPagesForNotebookSync(notebookId: String): List<PageEntity> =
+                    fakePages.values.filter { it.notebookId == notebookId }
                 override suspend fun getPageById(id: String): PageEntity? = fakePages[id]
                 override suspend fun insertPage(page: PageEntity) {
                     check(fakeNotebooks.containsKey(page.notebookId)) {

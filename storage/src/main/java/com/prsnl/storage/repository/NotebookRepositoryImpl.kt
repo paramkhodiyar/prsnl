@@ -99,28 +99,31 @@ class NotebookRepositoryImpl(
         if (existingPage != null) return existingPage
 
         val existingNotebook = getNotebookById(targetId)
-        val notebookId = if (existingNotebook != null) {
-            existingNotebook.id
-        } else {
-            val newNotebookId = if (targetId.isNotBlank()) targetId else UUID.randomUUID().toString()
+        if (existingNotebook != null) {
+            for (pId in existingNotebook.pages) {
+                val p = getPageById(pId)
+                if (p != null) return p
+            }
+            val dbPages = pageDao.getPagesForNotebookSync(existingNotebook.id)
+            if (dbPages.isNotEmpty()) {
+                val firstEntity = dbPages.first()
+                val elements = fileStorage.loadPageElements(firstEntity.elementFilePath)
+                return firstEntity.toDomain(elements)
+            }
+        }
+
+        val notebookId = existingNotebook?.id ?: if (targetId.isNotBlank()) targetId else UUID.randomUUID().toString()
+        if (existingNotebook == null) {
             val now = System.currentTimeMillis()
             val newNotebook = Notebook(
-                id = newNotebookId,
+                id = notebookId,
                 title = "Notebook",
                 createdAt = now,
                 updatedAt = now,
                 coverColor = 0xFF4B5563.toInt(),
-                folderName = "General"
+                folderName = "Personal"
             )
             saveNotebook(newNotebook)
-            newNotebookId
-        }
-
-        val existingPages = pageDao.getPagesForNotebookSync(notebookId)
-        if (existingPages.isNotEmpty()) {
-            val firstEntity = existingPages.first()
-            val elements = fileStorage.loadPageElements(firstEntity.elementFilePath)
-            return firstEntity.toDomain(elements)
         }
 
         val pageId = UUID.randomUUID().toString()
@@ -129,7 +132,7 @@ class NotebookRepositoryImpl(
             notebookId = notebookId,
             index = 0,
             width = 1200f,
-            height = 1600f,
+            height = 1697f,
             background = Background(
                 type = Background.Type.RULED,
                 lineSpacing = 40f,
@@ -140,10 +143,10 @@ class NotebookRepositoryImpl(
 
         savePage(newPage)
 
-        val notebook = getNotebookById(notebookId)
-        if (notebook != null) {
-            val updatedPages = (notebook.pages + pageId).distinct()
-            saveNotebook(notebook.copy(pages = updatedPages))
+        val nb = getNotebookById(notebookId)
+        if (nb != null) {
+            val updatedPages = (nb.pages + pageId).distinct()
+            saveNotebook(nb.copy(pages = updatedPages))
         }
 
         return newPage
