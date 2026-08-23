@@ -412,6 +412,24 @@ class DrawingCanvasView @JvmOverloads constructor(
         }
     }
 
+    fun deleteSelectedElements() {
+        val selSingle = selectedElement
+        val selGroup = lassoSelectedElements.toList()
+        if (selGroup.isNotEmpty()) {
+            val cmds = selGroup.map { Command.DeleteElement(it) }
+            onCommandIssued?.invoke(Command.CompoundCommand(cmds))
+            lassoSelectedElements.clear()
+            selectedElement = null
+            onSelectionChanged?.invoke(false)
+            invalidate()
+        } else if (selSingle != null) {
+            onCommandIssued?.invoke(Command.DeleteElement(selSingle))
+            selectedElement = null
+            onSelectionChanged?.invoke(false)
+            invalidate()
+        }
+    }
+
     fun getActiveSelectionBox(): RectData? {
         if (lassoSelectedElements.isNotEmpty()) {
             val minLeft = lassoSelectedElements.minOf { minOf(it.boundingBox.left, it.boundingBox.right) }

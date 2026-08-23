@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.prsnl.document.model.Background
 import com.prsnl.document.model.Command
+import com.prsnl.document.model.Notebook
 import com.prsnl.document.model.Page
 import com.prsnl.document.repository.NotebookRepository
 import com.prsnl.drawing.command.UndoRedoManager
@@ -28,6 +29,9 @@ class PageEditorViewModel(
 
     private val _notebookTitle = MutableStateFlow("Notebook")
     val notebookTitle: StateFlow<String> = _notebookTitle.asStateFlow()
+
+    private val _activeNotebook = MutableStateFlow<Notebook?>(null)
+    val activeNotebook: StateFlow<Notebook?> = _activeNotebook.asStateFlow()
 
     private val _activePageIndex = MutableStateFlow(0)
     val activePageIndex: StateFlow<Int> = _activePageIndex.asStateFlow()
@@ -58,6 +62,7 @@ class PageEditorViewModel(
             val notebook = repository.getNotebookById(firstPage.notebookId)
 
             if (notebook != null) {
+                _activeNotebook.value = notebook
                 _notebookTitle.value = notebook.title
             }
 
@@ -79,6 +84,9 @@ class PageEditorViewModel(
             loadedPages.forEach { p ->
                 undoRedoManagers[p.id] = UndoRedoManager(p)
             }
+
+            val targetIndex = (notebook?.lastViewedPageIndex ?: 0).coerceIn(0, loadedPages.size - 1)
+            _activePageIndex.value = targetIndex
             updateUndoRedoStates()
         }
     }
@@ -137,7 +145,14 @@ class PageEditorViewModel(
 
             val notebook = repository.getNotebookById(notebookId)
             if (notebook != null) {
-                repository.saveNotebook(notebook.copy(pages = updatedList.map { it.id }))
+                val newIndex = updatedList.size - 1
+                val updatedNb = notebook.copy(
+                    pages = updatedList.map { it.id },
+                    lastViewedPageIndex = newIndex,
+                    updatedAt = System.currentTimeMillis()
+                )
+                repository.saveNotebook(updatedNb)
+                _activeNotebook.value = updatedNb
             }
 
             _activePageIndex.value = updatedList.size - 1
@@ -155,7 +170,7 @@ class PageEditorViewModel(
 
         currentPages[pageIndex] = updatedPage
         _pagesList.value = currentPages
-        _activePageIndex.value = pageIndex
+        setActivePageIndex(pageIndex)
         updateUndoRedoStates()
         triggerAutosave()
     }
@@ -202,6 +217,18 @@ class PageEditorViewModel(
         if (index !in _pagesList.value.indices) return
         _activePageIndex.value = index
         updateUndoRedoStates()
+
+        val currentNb = _activeNotebook.value
+        if (currentNb != null && currentNb.lastViewedPageIndex != index) {
+            viewModelScope.launch {
+                val updatedNb = currentNb.copy(
+                    lastViewedPageIndex = index,
+                    updatedAt = System.currentTimeMillis()
+                )
+                repository.saveNotebook(updatedNb)
+                _activeNotebook.value = updatedNb
+            }
+        }
     }
 
     fun changeBackgroundType(type: Background.Type) {

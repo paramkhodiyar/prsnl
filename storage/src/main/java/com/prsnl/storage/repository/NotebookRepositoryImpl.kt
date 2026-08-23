@@ -64,7 +64,6 @@ class NotebookRepositoryImpl(
     }
 
     override suspend fun savePage(page: Page) {
-        // Enforce parent notebook existence BEFORE inserting page entity into Room SQLite!
         val parentNotebook = notebookDao.getNotebookById(page.notebookId)
         if (parentNotebook == null) {
             val now = System.currentTimeMillis()
@@ -76,7 +75,8 @@ class NotebookRepositoryImpl(
                 coverColor = 0xFF4B5563.toInt(),
                 coverStyle = "DEFAULT",
                 folderName = "General",
-                pageIdsJson = "[]"
+                lastViewedPageIndex = 0,
+                pagesJson = "[]"
             )
             notebookDao.insertNotebook(autoNotebook)
         }
@@ -95,16 +95,13 @@ class NotebookRepositoryImpl(
     }
 
     override suspend fun ensureNotebookAndPage(targetId: String): Page {
-        // 1. Direct Page lookup
         val existingPage = getPageById(targetId)
         if (existingPage != null) return existingPage
 
-        // 2. Direct Notebook lookup (if targetId is a notebookId)
         val existingNotebook = getNotebookById(targetId)
         val notebookId = if (existingNotebook != null) {
             existingNotebook.id
         } else {
-            // Create parent notebook entity FIRST to satisfy foreign key
             val newNotebookId = if (targetId.isNotBlank()) targetId else UUID.randomUUID().toString()
             val now = System.currentTimeMillis()
             val newNotebook = Notebook(
@@ -119,7 +116,6 @@ class NotebookRepositoryImpl(
             newNotebookId
         }
 
-        // 3. Check if pages exist for this notebook in DB
         val existingPages = pageDao.getPagesForNotebook(notebookId).firstOrNull()
         if (!existingPages.isNullOrEmpty()) {
             val firstEntity = existingPages.first()
@@ -127,7 +123,6 @@ class NotebookRepositoryImpl(
             return firstEntity.toDomain(elements)
         }
 
-        // 4. Create Page 1 linked to real notebookId
         val pageId = UUID.randomUUID().toString()
         val newPage = Page(
             id = pageId,
@@ -143,10 +138,8 @@ class NotebookRepositoryImpl(
             )
         )
 
-        // Save page entity (Parent notebook exists in DB so Foreign Key constraint is 100% satisfied!)
         savePage(newPage)
 
-        // Update notebook page list
         val notebook = getNotebookById(notebookId)
         if (notebook != null) {
             val updatedPages = (notebook.pages + pageId).distinct()
@@ -158,7 +151,7 @@ class NotebookRepositoryImpl(
 
     private fun NotebookEntity.toDomain(): Notebook {
         val pagesList = try {
-            json.decodeFromString<List<String>>(pageIdsJson)
+            json.decodeFromString<List<String>>(pagesJson)
         } catch (e: Exception) {
             emptyList()
         }
@@ -170,6 +163,7 @@ class NotebookRepositoryImpl(
             coverColor = coverColor,
             coverStyle = coverStyle,
             folderName = folderName,
+            lastViewedPageIndex = lastViewedPageIndex,
             pages = pagesList
         )
     }
@@ -183,7 +177,8 @@ class NotebookRepositoryImpl(
             coverColor = coverColor,
             coverStyle = coverStyle,
             folderName = folderName,
-            pageIdsJson = json.encodeToString(pages)
+            lastViewedPageIndex = lastViewedPageIndex,
+            pagesJson = json.encodeToString(pages)
         )
     }
 

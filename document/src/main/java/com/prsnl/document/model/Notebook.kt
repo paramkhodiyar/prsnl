@@ -11,5 +11,6 @@ data class Notebook(
     val coverColor: Int,
     val coverStyle: String = "DEFAULT",
     val folderName: String = "General",
+    val lastViewedPageIndex: Int = 0,
     val pages: List<String> = emptyList() // ordered page UUIDs
 )

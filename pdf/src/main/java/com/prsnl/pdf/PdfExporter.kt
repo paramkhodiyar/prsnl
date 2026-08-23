@@ -237,6 +237,12 @@ class PdfExporter {
         if (stroke.points.size < 2) return
         strokePaint.color = stroke.color
         strokePaint.strokeWidth = stroke.baseWidth
+        if (stroke.tool == Stroke.Tool.HIGHLIGHTER) {
+            val originalAlpha = Color.alpha(stroke.color)
+            strokePaint.alpha = if (originalAlpha < 255 && originalAlpha > 0) originalAlpha else 110
+        } else {
+            strokePaint.alpha = Color.alpha(stroke.color)
+        }
 
         for (i in 0 until stroke.points.size - 1) {
             val p1 = stroke.points[i]

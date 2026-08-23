@@ -10,7 +10,8 @@ data class NotebookEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val coverColor: Int,
-    val coverStyle: String,
+    val coverStyle: String = "DEFAULT",
     val folderName: String = "General",
-    val pageIdsJson: String // Serialized JSON list of Page IDs
+    val lastViewedPageIndex: Int = 0,
+    val pagesJson: String // serialized JSON list of page UUIDs
 )

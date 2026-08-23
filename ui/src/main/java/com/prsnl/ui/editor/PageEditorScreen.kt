@@ -1,13 +1,12 @@
 package com.prsnl.ui.editor
 
 import android.graphics.Color as AndroidColor
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -28,8 +27,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -47,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -56,7 +56,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -72,18 +71,26 @@ import com.prsnl.drawing.view.CanvasToolMode
 import com.prsnl.drawing.view.DrawingCanvasView
 import com.prsnl.pdf.PdfExporter
 import java.io.File
-import java.io.FileOutputStream
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.util.UUID
+
+private fun defaultPdfFilename(title: String): String {
+    val sanitized = title.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        .trim('_')
+        .ifEmpty { "notebook" }
+    return "${sanitized}.pdf"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PageEditorScreen(
     viewModel: PageEditorViewModel,
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit
 ) {
     val pagesList by viewModel.pagesList.collectAsState()
     val notebookTitle by viewModel.notebookTitle.collectAsState()
+    val activeNotebook by viewModel.activeNotebook.collectAsState()
     val activePageIndex by viewModel.activePageIndex.collectAsState()
     val canUndo by viewModel.canUndo.collectAsState()
     val canRedo by viewModel.canRedo.collectAsState()
@@ -143,40 +150,24 @@ fun PageEditorScreen(
     ) { uri: Uri? ->
         if (uri != null && activePage != null) {
             try {
-                val imageFile = File(context.filesDir, "img_${UUID.randomUUID()}")
-                context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    FileOutputStream(imageFile).use { outputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
-                } ?: throw IllegalStateException("Unable to open selected image")
+                val imageDir = File(context.filesDir, "images")
+                if (!imageDir.exists()) imageDir.mkdirs()
 
-                val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                BitmapFactory.decodeFile(imageFile.absolutePath, boundsOptions)
-                val imageWidth = boundsOptions.outWidth
-                val imageHeight = boundsOptions.outHeight
-                if (imageWidth <= 0 || imageHeight <= 0) {
-                    imageFile.delete()
-                    throw IllegalArgumentException("Unsupported or corrupted image")
+                val imageFile = File(imageDir, "img_${UUID.randomUUID()}.png")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(imageFile).use { output -> input.copyTo(output) }
                 }
 
-                val maxWidth = activePage.width * 0.6f
-                val maxHeight = activePage.height * 0.45f
-                val scale = minOf(maxWidth / imageWidth.toFloat(), maxHeight / imageHeight.toFloat(), 1f)
-                val placedWidth = imageWidth * scale
-                val placedHeight = imageHeight * scale
-                val left = (activePage.width - placedWidth) / 2f
-                val top = (activePage.height - placedHeight) / 3f
-
-                val newImage = ImageElement(
+                val targetView = canvasViews[activePageIndex]
+                val imgElement = ImageElement(
                     id = UUID.randomUUID().toString(),
-                    zIndex = (activePage?.elements?.maxOfOrNull { it.zIndex } ?: -1) + 1,
-                    boundingBox = RectData(left, top, left + placedWidth, top + placedHeight),
+                    zIndex = (activePage.elements.maxOfOrNull { it.zIndex } ?: -1) + 1,
+                    boundingBox = RectData(100f, 100f, 500f, 500f),
                     createdAt = System.currentTimeMillis(),
                     assetPath = imageFile.absolutePath
                 )
-                viewModel.executeCommand(activePageIndex, Command.AddElement(newImage))
-                viewModel.setToolMode(CanvasToolMode.SELECT)
-                Toast.makeText(context, "Image added. Use Select to move or resize it.", Toast.LENGTH_SHORT).show()
+                viewModel.executeCommand(activePageIndex, Command.AddElement(imgElement))
+                targetView?.invalidate()
             } catch (e: Exception) {
                 android.util.Log.e("PageEditorScreen", "Failed to save image attachment", e)
                 Toast.makeText(context, "Could not import that image.", Toast.LENGTH_LONG).show()
@@ -288,6 +279,18 @@ fun PageEditorScreen(
                     .background(Color(0xFFFBF9F4))
             ) {
                 val scrollState = rememberScrollState()
+                var hasAutoScrolled by remember { mutableStateOf(false) }
+
+                LaunchedEffect(activeNotebook, pagesList) {
+                    val nb = activeNotebook
+                    if (nb != null && !hasAutoScrolled && pagesList.isNotEmpty()) {
+                        val targetIdx = nb.lastViewedPageIndex.coerceIn(0, pagesList.size - 1)
+                        if (targetIdx > 0) {
+                            scrollState.scrollTo(targetIdx * 1750)
+                        }
+                        hasAutoScrolled = true
+                    }
+                }
 
                 if (pagesList.isNotEmpty()) {
                     Column(
@@ -395,65 +398,134 @@ fun PageEditorScreen(
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
-
-                                Spacer(modifier = Modifier.height(24.dp))
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(120.dp))
-                    }
-
-                    // Floating Toolbar Overlay
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 24.dp)
-                    ) {
-                        FloatingWritingToolbar(
-                            toolMode = toolMode,
-                            onToolModeChange = { viewModel.setToolMode(it) },
-                            selectedColor = selectedColor,
-                            onColorSelect = { selectedColor = it },
-                            selectedWidth = selectedWidth,
-                            onWidthChange = { selectedWidth = it },
-                            eraserRadius = eraserRadius,
-                            onEraserRadiusChange = { eraserRadius = it },
-                            selectedShapeType = selectedShapeType,
-                            onShapeTypeSelect = { selectedShapeType = it },
-                            isFingerDrawingEnabled = isFingerDrawingEnabled,
-                            onFingerDrawingToggle = { isFingerDrawingEnabled = !isFingerDrawingEnabled },
-                            isPressureSensitivityEnabled = isPressureSensitivityEnabled,
-                            onPressureSensitivityToggle = { isPressureSensitivityEnabled = !isPressureSensitivityEnabled },
-                            hasSelection = hasCanvasSelection,
-                            onDeleteSelection = {
-                                val deleted = canvasViews[activePageIndex]?.deleteSelection() ?: false
-                                if (!deleted) {
-                                    hasCanvasSelection = false
-                                }
-                            },
-                            onOpenColorWheel = { showColorWheel = true },
-                            onOpenSettings = { showSettingsModal = true },
-                            onInsertImage = { imagePickerLauncher.launch("image/*") }
-                        )
                     }
                 }
+
+                // Bottom Floating Control Bar
+                FloatingWritingToolbar(
+                    toolMode = toolMode,
+                    onToolModeChange = { viewModel.setToolMode(it) },
+                    selectedColor = selectedColor,
+                    onColorSelect = { selectedColor = it },
+                    selectedWidth = selectedWidth,
+                    onWidthChange = { selectedWidth = it },
+                    eraserRadius = eraserRadius,
+                    onEraserRadiusChange = { eraserRadius = it },
+                    selectedShapeType = selectedShapeType,
+                    onShapeTypeSelect = { selectedShapeType = it },
+                    isFingerDrawingEnabled = isFingerDrawingEnabled,
+                    onFingerDrawingToggle = { isFingerDrawingEnabled = !isFingerDrawingEnabled },
+                    isPressureSensitivityEnabled = isPressureSensitivityEnabled,
+                    onPressureSensitivityToggle = { isPressureSensitivityEnabled = !isPressureSensitivityEnabled },
+                    hasSelection = hasCanvasSelection,
+                    onDeleteSelection = {
+                        val activeView = canvasViews[activePageIndex]
+                        activeView?.deleteSelectedElements()
+                    },
+                    onOpenColorWheel = { showColorWheel = true },
+                    onOpenSettings = { showSettingsModal = true },
+                    onInsertImage = { imagePickerLauncher.launch("image/*") }
+                )
             }
         }
 
-        // Inline Typer Text Box Modal
-        if (pendingTextInsertPos != null) {
-            val (tx, ty) = pendingTextInsertPos!!
+        // Export PDF Dialog
+        if (showExportDialog) {
+            AlertDialog(
+                onDismissRequest = { showExportDialog = false },
+                containerColor = Color(0xFFF5F0E6),
+                titleContentColor = Color(0xFF2D2B28),
+                textContentColor = Color(0xFF2D2B28),
+                title = { Text("Export Annotated PDF", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column {
+                        Text(
+                            text = "Export your handwritten notes, highlighters, and PDF annotations into a single high-resolution PDF document.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF5C5850)
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedTextField(
+                            value = exportFilename,
+                            onValueChange = { exportFilename = it },
+                            label = { Text("File Name", color = Color(0xFF5C5850)) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFC88A4B),
+                                unfocusedBorderColor = Color(0xFFE2D7C5),
+                                focusedTextColor = Color(0xFF2D2B28),
+                                unfocusedTextColor = Color(0xFF2D2B28)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showExportDialog = false
+                            val safeName = exportFilename.trim().ifEmpty { defaultPdfFilename(notebookTitle) }
+                            exportPdfLauncher.launch(safeName)
+                        }
+                    ) {
+                        Text("Export PDF", color = Color(0xFF4C6EF5), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showExportDialog = false }) {
+                        Text("Cancel", color = Color(0xFF5C5850))
+                    }
+                }
+            )
+        }
+
+        // Custom Page Settings Modal
+        if (showSettingsModal && activePage != null) {
+            NotebookSettingsModal(
+                currentBackground = activePage.background,
+                isFingerDrawingEnabled = isFingerDrawingEnabled,
+                isPressureSensitivityEnabled = isPressureSensitivityEnabled,
+                onDismiss = { showSettingsModal = false },
+                onBackgroundTypeChange = { viewModel.changeBackgroundType(it) },
+                onLineSpacingChange = { viewModel.changeLineSpacing(it) },
+                onLineWeightChange = { viewModel.changeLineWeight(it) },
+                onLineOpacityChange = { viewModel.changeLineOpacity(it) },
+                onLineColorChange = { viewModel.changeLineColor(it) },
+                onMarginWeightChange = { viewModel.changeMarginWeight(it) },
+                onPaperColorChange = { viewModel.changePaperColor(it) },
+                onFingerDrawingToggle = { isFingerDrawingEnabled = !isFingerDrawingEnabled },
+                onPressureSensitivityToggle = { isPressureSensitivityEnabled = !isPressureSensitivityEnabled }
+            )
+        }
+
+        // Color Wheel Modal
+        if (showColorWheel) {
+            ColorWheelPickerModal(
+                initialColor = selectedColor,
+                onColorSelected = {
+                    selectedColor = it
+                    showColorWheel = false
+                },
+                onDismiss = { showColorWheel = false }
+            )
+        }
+
+        // Insert Text Dialog
+        if (pendingTextInsertPos != null && activePage != null) {
+            val (posX, posY) = pendingTextInsertPos!!
             AlertDialog(
                 onDismissRequest = { pendingTextInsertPos = null },
                 containerColor = Color(0xFFF5F0E6),
                 titleContentColor = Color(0xFF2D2B28),
                 textContentColor = Color(0xFF2D2B28),
-                title = { Text("Insert Typed Text", fontWeight = FontWeight.Bold) },
+                title = { Text("Insert Text Box", fontWeight = FontWeight.Bold) },
                 text = {
                     OutlinedTextField(
                         value = typedTextContent,
                         onValueChange = { typedTextContent = it },
-                        label = { Text("Type text here...", color = Color(0xFF5C5850)) },
+                        label = { Text("Type annotation text...", color = Color(0xFF5C5850)) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFFC88A4B),
                             unfocusedBorderColor = Color(0xFFE2D7C5),
@@ -467,46 +539,54 @@ fun PageEditorScreen(
                     TextButton(
                         onClick = {
                             if (typedTextContent.isNotBlank()) {
-                                val newBox = TextBox(
+                                val targetView = canvasViews[activePageIndex]
+                                val nextZ = (activePage.elements.maxOfOrNull { it.zIndex } ?: -1) + 1
+                                val textBox = TextBox(
                                     id = UUID.randomUUID().toString(),
-                                    zIndex = (activePage?.elements?.maxOfOrNull { it.zIndex } ?: -1) + 1,
-                                    boundingBox = RectData(tx, ty, tx + 300f, ty + 60f),
+                                    zIndex = nextZ,
+                                    boundingBox = RectData(posX, posY, posX + (typedTextContent.length * 16f).coerceAtLeast(120f), posY + 48f),
                                     createdAt = System.currentTimeMillis(),
                                     content = typedTextContent,
                                     fontSize = 28f,
                                     color = selectedColor
                                 )
-                                viewModel.executeCommand(activePageIndex, Command.AddElement(newBox))
+                                viewModel.executeCommand(activePageIndex, Command.AddElement(textBox))
+                                targetView?.invalidate()
                             }
                             typedTextContent = ""
                             pendingTextInsertPos = null
                         }
                     ) {
-                        Text("Insert Text", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
+                        Text("Add Text", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { pendingTextInsertPos = null }) {
+                    TextButton(
+                        onClick = {
+                            typedTextContent = ""
+                            pendingTextInsertPos = null
+                        }
+                    ) {
                         Text("Cancel", color = Color(0xFF5C5850))
                     }
                 }
             )
         }
 
-        // Inline Edit Existing Text Box Modal
-        if (editingTextBox != null) {
+        // Edit Text Dialog (Double-tap inline text editor)
+        if (editingTextBox != null && activePage != null) {
             val targetBox = editingTextBox!!
             AlertDialog(
                 onDismissRequest = { editingTextBox = null },
                 containerColor = Color(0xFFF5F0E6),
                 titleContentColor = Color(0xFF2D2B28),
                 textContentColor = Color(0xFF2D2B28),
-                title = { Text("Edit Text Content", fontWeight = FontWeight.Bold) },
+                title = { Text("Edit Text Annotation", fontWeight = FontWeight.Bold) },
                 text = {
                     OutlinedTextField(
                         value = editTypedTextContent,
                         onValueChange = { editTypedTextContent = it },
-                        label = { Text("Text content", color = Color(0xFF5C5850)) },
+                        label = { Text("Edit text...", color = Color(0xFF5C5850)) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFFC88A4B),
                             unfocusedBorderColor = Color(0xFFE2D7C5),
@@ -517,16 +597,36 @@ fun PageEditorScreen(
                     )
                 },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            if (editTypedTextContent.isNotBlank()) {
-                                val updatedBox = targetBox.copy(content = editTypedTextContent)
-                                viewModel.executeCommand(activePageIndex, Command.ReplaceElement(targetBox, updatedBox))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = {
+                                viewModel.executeCommand(activePageIndex, Command.DeleteElement(targetBox))
+                                editingTextBox = null
+                                canvasViews[activePageIndex]?.invalidate()
                             }
-                            editingTextBox = null
+                        ) {
+                            Text("Delete Text", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
                         }
-                    ) {
-                        Text("Save Text", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
+                        TextButton(
+                            onClick = {
+                                if (editTypedTextContent.isNotBlank()) {
+                                    val updatedBox = targetBox.copy(
+                                        content = editTypedTextContent,
+                                        boundingBox = targetBox.boundingBox.copy(
+                                            right = targetBox.boundingBox.left + (editTypedTextContent.length * 16f).coerceAtLeast(120f)
+                                        )
+                                    )
+                                    viewModel.executeCommand(
+                                        activePageIndex,
+                                        Command.ReplaceElement(targetBox, updatedBox)
+                                    )
+                                    canvasViews[activePageIndex]?.invalidate()
+                                }
+                                editingTextBox = null
+                            }
+                        ) {
+                            Text("Save Text", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
                 dismissButton = {
@@ -536,104 +636,5 @@ fun PageEditorScreen(
                 }
             )
         }
-
-        if (showExportDialog) {
-            AlertDialog(
-                onDismissRequest = { showExportDialog = false },
-                containerColor = Color(0xFFF5F0E6),
-                titleContentColor = Color(0xFF2D2B28),
-                textContentColor = Color(0xFF2D2B28),
-                title = { Text("Export PDF", fontWeight = FontWeight.Bold) },
-                text = {
-                    OutlinedTextField(
-                        value = exportFilename,
-                        onValueChange = { exportFilename = it },
-                        label = { Text("Filename", color = Color(0xFF5C5850)) },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFC88A4B),
-                            unfocusedBorderColor = Color(0xFFE2D7C5),
-                            focusedTextColor = Color(0xFF2D2B28),
-                            unfocusedTextColor = Color(0xFF2D2B28)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val safeName = sanitizePdfFilename(exportFilename)
-                            exportFilename = safeName
-                            showExportDialog = false
-                            exportPdfLauncher.launch(safeName)
-                        }
-                    ) {
-                        Text("Choose Location", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showExportDialog = false }) {
-                        Text("Cancel", color = Color(0xFF5C5850))
-                    }
-                }
-            )
-        }
-
-        if (showSettingsModal && activePage != null) {
-            NotebookSettingsModal(
-                currentBackground = activePage.background,
-                isFingerDrawingEnabled = isFingerDrawingEnabled,
-                isPressureSensitivityEnabled = isPressureSensitivityEnabled,
-                onDismiss = { showSettingsModal = false },
-                onBackgroundTypeChange = { newType ->
-                    viewModel.changeBackgroundType(newType)
-                },
-                onLineSpacingChange = { newSpacing ->
-                    viewModel.changeLineSpacing(newSpacing)
-                },
-                onLineWeightChange = { newWeight ->
-                    viewModel.changeLineWeight(newWeight)
-                },
-                onLineOpacityChange = { newOpacity ->
-                    viewModel.changeLineOpacity(newOpacity)
-                },
-                onLineColorChange = { newColor ->
-                    viewModel.changeLineColor(newColor)
-                },
-                onMarginWeightChange = { newWeight ->
-                    viewModel.changeMarginWeight(newWeight)
-                },
-                onPaperColorChange = { newColor ->
-                    viewModel.changePaperColor(newColor)
-                },
-                onFingerDrawingToggle = { isFingerDrawingEnabled = !isFingerDrawingEnabled },
-                onPressureSensitivityToggle = { isPressureSensitivityEnabled = !isPressureSensitivityEnabled }
-            )
-        }
-
-        if (showColorWheel) {
-            ColorWheelPickerModal(
-                initialColor = selectedColor,
-                onDismiss = { showColorWheel = false },
-                onColorSelected = { chosen ->
-                    selectedColor = chosen
-                    showColorWheel = false
-                }
-            )
-        }
     }
-}
-
-private fun defaultPdfFilename(title: String): String {
-    return sanitizePdfFilename(title.ifBlank { "Notebook" })
-}
-
-private fun sanitizePdfFilename(rawName: String): String {
-    val cleaned = rawName
-        .trim()
-        .replace(Regex("[\\\\/:*?\"<>|]+"), "_")
-        .replace(Regex("\\s+"), " ")
-        .ifBlank { "Notebook" }
-    val withoutPdf = cleaned.removeSuffix(".pdf").removeSuffix(".PDF")
-    return "$withoutPdf.pdf"
 }
