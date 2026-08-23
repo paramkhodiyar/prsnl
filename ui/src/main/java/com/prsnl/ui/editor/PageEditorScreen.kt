@@ -104,6 +104,9 @@ fun PageEditorScreen(
     var hasCanvasSelection by remember { mutableStateOf(false) }
     val canvasViews = remember { mutableMapOf<Int, DrawingCanvasView>() }
 
+    var editingTextBox by remember { mutableStateOf<TextBox?>(null) }
+    var editTypedTextContent by remember { mutableStateOf("") }
+
     // Typer Text Box State
     var pendingTextInsertPos by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     var typedTextContent by remember { mutableStateOf("") }
@@ -365,6 +368,13 @@ fun PageEditorScreen(
                                                 this.onInsertTextBoxRequested = { x, y ->
                                                     pendingTextInsertPos = Pair(x, y)
                                                 }
+                                                this.onEditTextBoxRequested = { textBox ->
+                                                    editingTextBox = textBox
+                                                    editTypedTextContent = textBox.content
+                                                }
+                                                this.onToolModeAutoSwitchRequested = { newMode ->
+                                                    viewModel.setToolMode(newMode)
+                                                }
                                                 canvasViews[index] = this
                                             }
                                         },
@@ -477,6 +487,50 @@ fun PageEditorScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingTextInsertPos = null }) {
+                        Text("Cancel", color = Color(0xFF5C5850))
+                    }
+                }
+            )
+        }
+
+        // Inline Edit Existing Text Box Modal
+        if (editingTextBox != null) {
+            val targetBox = editingTextBox!!
+            AlertDialog(
+                onDismissRequest = { editingTextBox = null },
+                containerColor = Color(0xFFF5F0E6),
+                titleContentColor = Color(0xFF2D2B28),
+                textContentColor = Color(0xFF2D2B28),
+                title = { Text("Edit Text Content", fontWeight = FontWeight.Bold) },
+                text = {
+                    OutlinedTextField(
+                        value = editTypedTextContent,
+                        onValueChange = { editTypedTextContent = it },
+                        label = { Text("Text content", color = Color(0xFF5C5850)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFC88A4B),
+                            unfocusedBorderColor = Color(0xFFE2D7C5),
+                            focusedTextColor = Color(0xFF2D2B28),
+                            unfocusedTextColor = Color(0xFF2D2B28)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (editTypedTextContent.isNotBlank()) {
+                                val updatedBox = targetBox.copy(content = editTypedTextContent)
+                                viewModel.executeCommand(activePageIndex, Command.ReplaceElement(targetBox, updatedBox))
+                            }
+                            editingTextBox = null
+                        }
+                    ) {
+                        Text("Save Text", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editingTextBox = null }) {
                         Text("Cancel", color = Color(0xFF5C5850))
                     }
                 }

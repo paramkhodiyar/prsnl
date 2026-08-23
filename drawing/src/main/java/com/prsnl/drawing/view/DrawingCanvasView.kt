@@ -1,13 +1,11 @@
 package com.prsnl.drawing.view
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -33,19 +31,21 @@ import com.prsnl.drawing.selection.SelectionHandler
 import com.prsnl.drawing.shape.ShapeRecognizer
 import java.util.UUID
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.min
+import kotlin.math.sin
 
 enum class CanvasToolMode {
     PEN,
     PENCIL,
     HIGHLIGHTER,
-    STROKE_ERASER,
-    PIXEL_ERASER,
     SHAPE_PICKER,
     SELECT,
     LASSO,
-    TEXT
+    TEXT,
+    STROKE_ERASER,
+    PIXEL_ERASER
 }
 
 class DrawingCanvasView @JvmOverloads constructor(
@@ -55,6 +55,16 @@ class DrawingCanvasView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     var currentToolMode: CanvasToolMode = CanvasToolMode.PEN
+        set(value) {
+            field = value
+            if (value != CanvasToolMode.SELECT && value != CanvasToolMode.LASSO) {
+                selectedElement = null
+                lassoSelectedElements.clear()
+                onSelectionChanged?.invoke(false)
+            }
+            invalidate()
+        }
+
     var currentColor: Int = Color.BLACK
     var currentBaseWidth: Float = 6f
     var eraserRadius: Float = 32f
@@ -85,8 +95,13 @@ class DrawingCanvasView @JvmOverloads constructor(
     var onCommandIssued: ((Command) -> Unit)? = null
     var onAutoStylusSwitch: (() -> Unit)? = null
     var onInsertTextBoxRequested: ((x: Float, y: Float) -> Unit)? = null
+    var onEditTextBoxRequested: ((TextBox) -> Unit)? = null
+    var onToolModeAutoSwitchRequested: ((CanvasToolMode) -> Unit)? = null
     var onInteractionStarted: (() -> Unit)? = null
     var onSelectionChanged: ((Boolean) -> Unit)? = null
+
+    private var lastTappedTextBoxId: String? = null
+    private var lastTextBoxTapTimeMs: Long = 0L
 
     private val strokeRenderer = StrokeRenderer()
     private val shapeRenderer = ShapeRenderer()
@@ -105,7 +120,6 @@ class DrawingCanvasView @JvmOverloads constructor(
     private val lassoPoints = mutableListOf<StrokePoint>()
     private val lassoPath = Path()
     private var dashPhase = 0f
-    // All elements selected by lasso (rendered with marching ants)
     private val lassoSelectedElements = mutableListOf<Element>()
 
     // Transform State for SELECT mode
@@ -119,7 +133,6 @@ class DrawingCanvasView @JvmOverloads constructor(
     private var transformLastElement: Element? = null
     private var selectDragLastX = 0f
     private var selectDragLastY = 0f
-    private var activePointerId = MotionEvent.INVALID_POINTER_ID
     private var isStylusStrokeActive = false
 
     var committedElements: List<Element>
@@ -171,7 +184,7 @@ class DrawingCanvasView @JvmOverloads constructor(
     private val handleStrokePaint = Paint().apply {
         isAntiAlias = true
         style = Paint.Style.STROKE
-        strokeWidth = 2.5f
+        strokeWidth = 3f
         color = 0xFF38BDF8.toInt()
     }
 
@@ -260,124 +273,72 @@ class DrawingCanvasView @JvmOverloads constructor(
 
     private fun handleDrawingTouch(event: MotionEvent, action: Int, safeIndex: Int) {
         when (action) {
-            MotionEvent.ACTION_DOWN -> {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 strokeStartTimeMs = System.currentTimeMillis()
                 lastPointTime = event.eventTime
-                lastPressure = 0f
+                val p = extractPointSafely(event, safeIndex, strokeStartTimeMs) ?: return
+                lastPointX = p.x
+                lastPointY = p.y
+                lastPressure = p.pressure
 
-                val firstPoint = extractPointSafely(event, safeIndex, strokeStartTimeMs) ?: return
-                activePointerId = event.getPointerId(safeIndex)
-                isStylusStrokeActive = event.getToolType(safeIndex).isStylusTool()
-                lastPointX = firstPoint.x
-                lastPointY = firstPoint.y
+                val tool = when (currentToolMode) {
+                    CanvasToolMode.HIGHLIGHTER -> Stroke.Tool.HIGHLIGHTER
+                    CanvasToolMode.PENCIL -> Stroke.Tool.PENCIL
+                    else -> Stroke.Tool.PEN
+                }
 
-                val strokeId = UUID.randomUUID().toString()
-                val newActiveStroke = ActiveStroke(
-                    id = strokeId,
+                val newActive = ActiveStroke(
+                    id = UUID.randomUUID().toString(),
                     color = currentColor,
                     baseWidth = currentBaseWidth,
-                    tool = when (currentToolMode) {
-                        CanvasToolMode.HIGHLIGHTER -> Stroke.Tool.HIGHLIGHTER
-                        CanvasToolMode.PENCIL -> Stroke.Tool.PENCIL
-                        else -> Stroke.Tool.PEN
-                    }
+                    tool = tool
                 )
-                newActiveStroke.addPoint(firstPoint)
-                activeStroke = newActiveStroke
-                // NOTE: hold-to-recognize timer is ONLY for SHAPE_PICKER mode.
-                // Never fire it during freehand PEN/PENCIL/HIGHLIGHTER drawing.
+                newActive.addPoint(p)
+                activeStroke = newActive
+                isStylusStrokeActive = true
                 invalidate()
             }
 
             MotionEvent.ACTION_MOVE -> {
-                val current = activeStroke ?: return
-                val pointerIndex = event.findActivePointerIndex() ?: return
+                val active = activeStroke ?: return
                 val historySize = event.historySize
                 for (h in 0 until historySize) {
-                    val historical = extractHistoricalPointSafely(event, pointerIndex, h, strokeStartTimeMs)
-                    if (historical != null) current.addPoint(historical)
+                    val hp = extractHistoricalPointSafely(event, safeIndex, h, strokeStartTimeMs)
+                    if (hp != null) {
+                        active.addPoint(hp)
+                    }
                 }
-                val p = extractPointSafely(event, pointerIndex, strokeStartTimeMs) ?: return
-                current.addPoint(p)
+                val p = extractPointSafely(event, safeIndex, strokeStartTimeMs)
+                if (p != null) {
+                    active.addPoint(p)
+                }
                 invalidate()
             }
 
-            MotionEvent.ACTION_UP -> {
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 inputFilter.onPointerUpOrCancel(event, safeIndex)
-                val current = activeStroke
-                if (current != null) {
-                    val pointerIndex = event.findActivePointerIndex() ?: safeIndex
-                    val p = extractPointSafely(event, pointerIndex, strokeStartTimeMs)
-                    if (p != null) current.addPoint(p)
-
+                isStylusStrokeActive = false
+                val active = activeStroke
+                if (active != null && active.points.isNotEmpty()) {
                     val snapshot = synchronized(localElementsList) { localElementsList.toList() }
                     val nextZIndex = (snapshot.maxOfOrNull { it.zIndex } ?: -1) + 1
-                    val committed = current.toCommittedStroke(
-                        zIndex = nextZIndex,
-                        createdAt = System.currentTimeMillis()
-                    )
+                    val finalStroke = active.toCommittedStroke(nextZIndex, strokeStartTimeMs)
                     synchronized(localElementsList) {
-                        localElementsList.add(committed)
+                        localElementsList.add(finalStroke)
                     }
-                    activeStroke = null
-                    onCommandIssued?.invoke(Command.AddElement(committed))
-                    invalidate()
+                    onCommandIssued?.invoke(Command.AddElement(finalStroke))
                 }
-                activePointerId = MotionEvent.INVALID_POINTER_ID
-                isStylusStrokeActive = false
+                activeStroke = null
+                invalidate()
             }
 
             MotionEvent.ACTION_CANCEL -> {
                 inputFilter.onPointerUpOrCancel(event, safeIndex)
-                activeStroke = null
-                activePointerId = MotionEvent.INVALID_POINTER_ID
                 isStylusStrokeActive = false
+                activeStroke = null
                 invalidate()
             }
         }
-    }
-
-    // Hold-to-recognize: ONLY used from SHAPE_PICKER mode, never from PEN/PENCIL/HIGHLIGHTER.
-    private fun scheduleShapePickerHoldRecognize() {
-        cancelHoldToRecognizeTimer()
-        val runnable = Runnable {
-            val current = activeStroke ?: return@Runnable
-            val snapshot = current.toCommittedStroke(0, System.currentTimeMillis())
-            val recognizedShape = shapeRecognizer.recognize(snapshot)
-            if (recognizedShape != null) {
-                synchronized(localElementsList) {
-                    localElementsList.add(recognizedShape)
-                }
-                activeStroke = null
-                onCommandIssued?.invoke(Command.AddElement(recognizedShape))
-                post { invalidate() }
-            } else if (snapshot.points.size >= 4) {
-                val first = snapshot.points.first()
-                val last = snapshot.points.last()
-                val straightLine = Shape(
-                    id = UUID.randomUUID().toString(),
-                    zIndex = (localElementsList.maxOfOrNull { it.zIndex } ?: -1) + 1,
-                    boundingBox = RectData(minOf(first.x, last.x), minOf(first.y, last.y), maxOf(first.x, last.x), maxOf(first.y, last.y)),
-                    createdAt = System.currentTimeMillis(),
-                    type = Shape.Type.LINE,
-                    strokeColor = currentColor,
-                    strokeWidth = currentBaseWidth
-                )
-                synchronized(localElementsList) {
-                    localElementsList.add(straightLine)
-                }
-                activeStroke = null
-                onCommandIssued?.invoke(Command.AddElement(straightLine))
-                post { invalidate() }
-            }
-        }
-        holdToRecognizeRunnable = runnable
-        handler?.postDelayed(runnable, 600L)
-    }
-
-    private fun cancelHoldToRecognizeTimer() {
-        holdToRecognizeRunnable?.let { handler?.removeCallbacks(it) }
-        holdToRecognizeRunnable = null
     }
 
     private var activeShape: Shape? = null
@@ -405,16 +366,19 @@ class DrawingCanvasView @JvmOverloads constructor(
                 invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
-                cancelHoldToRecognizeTimer()  // Cancel if user drags
+                cancelHoldToRecognizeTimer()
                 val current = activeShape
                 if (current != null) {
-                    val minX = minOf(shapeStartX, p.x)
-                    val maxX = maxOf(shapeStartX, p.x)
-                    val minY = minOf(shapeStartY, p.y)
-                    val maxY = maxOf(shapeStartY, p.y)
-                    activeShape = current.copy(
-                        boundingBox = RectData(minX, minY, maxX, maxY)
-                    )
+                    val box = if (current.type == Shape.Type.LINE || current.type == Shape.Type.ARROW || current.type == Shape.Type.ARROW_DOUBLE) {
+                        RectData(shapeStartX, shapeStartY, p.x, p.y)
+                    } else {
+                        val minX = minOf(shapeStartX, p.x)
+                        val maxX = maxOf(shapeStartX, p.x)
+                        val minY = minOf(shapeStartY, p.y)
+                        val maxY = maxOf(shapeStartY, p.y)
+                        RectData(minX, minY, maxX, maxY)
+                    }
+                    activeShape = current.copy(boundingBox = box)
                     invalidate()
                 }
             }
@@ -422,13 +386,16 @@ class DrawingCanvasView @JvmOverloads constructor(
                 cancelHoldToRecognizeTimer()
                 val current = activeShape
                 if (current != null) {
-                    val minX = minOf(shapeStartX, p.x)
-                    val maxX = maxOf(shapeStartX, p.x)
-                    val minY = minOf(shapeStartY, p.y)
-                    val maxY = maxOf(shapeStartY, p.y)
-                    val finalShape = current.copy(
-                        boundingBox = RectData(minX, minY, maxX, maxY)
-                    )
+                    val box = if (current.type == Shape.Type.LINE || current.type == Shape.Type.ARROW || current.type == Shape.Type.ARROW_DOUBLE) {
+                        RectData(shapeStartX, shapeStartY, p.x, p.y)
+                    } else {
+                        val minX = minOf(shapeStartX, p.x)
+                        val maxX = maxOf(shapeStartX, p.x)
+                        val minY = minOf(shapeStartY, p.y)
+                        val maxY = maxOf(shapeStartY, p.y)
+                        RectData(minX, minY, maxX, maxY)
+                    }
+                    val finalShape = current.copy(boundingBox = box)
                     synchronized(localElementsList) {
                         localElementsList.add(finalShape)
                     }
@@ -438,6 +405,23 @@ class DrawingCanvasView @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    fun getActiveSelectionBox(): RectData? {
+        if (lassoSelectedElements.isNotEmpty()) {
+            val minLeft = lassoSelectedElements.minOf { minOf(it.boundingBox.left, it.boundingBox.right) }
+            val minTop = lassoSelectedElements.minOf { minOf(it.boundingBox.top, it.boundingBox.bottom) }
+            val maxRight = lassoSelectedElements.maxOf { maxOf(it.boundingBox.left, it.boundingBox.right) }
+            val maxBottom = lassoSelectedElements.maxOf { maxOf(it.boundingBox.top, it.boundingBox.bottom) }
+            return RectData(minLeft, minTop, maxRight, maxBottom)
+        }
+        val sel = selectedElement ?: return null
+        val b = sel.boundingBox
+        val minLeft = minOf(b.left, b.right)
+        val minTop = minOf(b.top, b.bottom)
+        val maxRight = maxOf(b.left, b.right)
+        val maxBottom = maxOf(b.top, b.bottom)
+        return RectData(minLeft, minTop, maxRight, maxBottom)
     }
 
     private fun handleLassoTouch(event: MotionEvent, action: Int, safeIndex: Int) {
@@ -464,10 +448,14 @@ class DrawingCanvasView @JvmOverloads constructor(
                 lassoSelectedElements.clear()
                 lassoSelectedElements.addAll(selected)
                 onSelectionChanged?.invoke(selected.isNotEmpty())
-                // If exactly one element selected, also set it as the single SELECT target
                 if (selected.size == 1) {
                     selectedElement = selected.first()
                     selectionHandler.selectAt(snapshot, selected.first().boundingBox.centerX, selected.first().boundingBox.centerY)
+                } else if (selected.size > 1) {
+                    selectedElement = null
+                }
+                if (selected.isNotEmpty()) {
+                    onToolModeAutoSwitchRequested?.invoke(CanvasToolMode.SELECT)
                 }
                 lassoPoints.clear()
                 lassoPath.reset()
@@ -496,16 +484,16 @@ class DrawingCanvasView @JvmOverloads constructor(
                 transformStartElement = null
                 transformLastElement = null
 
-                val prevSelected = selectedElement
-                if (prevSelected != null) {
-                    val bounds = prevSelected.boundingBox
+                val activeBox = getActiveSelectionBox()
+                if (activeBox != null) {
+                    val bounds = activeBox
 
                     // Check top rotation handle
                     val topRotateX = bounds.centerX
                     val topRotateY = bounds.top - 40f
                     if (hypot(p.x - topRotateX, p.y - topRotateY) < 30f) {
                         isDraggingTopRotationHandle = true
-                        transformStartElement = prevSelected
+                        transformStartElement = selectedElement
                         initialRotationAngle = Math.toDegrees(atan2(
                             (p.y - bounds.centerY).toDouble(),
                             (p.x - bounds.centerX).toDouble()
@@ -526,28 +514,48 @@ class DrawingCanvasView @JvmOverloads constructor(
                         if (hypot(p.x - corner.first, p.y - corner.second) < 28f) {
                             isDraggingCornerHandle = true
                             draggingCornerIndex = i
-                            transformStartElement = prevSelected
+                            transformStartElement = selectedElement
                             selectDragLastX = p.x
                             selectDragLastY = p.y
                             return
                         }
                     }
 
-                    // Check if inside bounding box to drag/move
+                    // Check inside bounding box to drag/move
                     if (p.x >= bounds.left && p.x <= bounds.right && p.y >= bounds.top && p.y <= bounds.bottom) {
                         isDraggingSelectedElement = true
-                        transformStartElement = prevSelected
+                        transformStartElement = selectedElement
                         selectDragLastX = p.x
                         selectDragLastY = p.y
                         return
                     }
                 }
 
-                // Tap outside or on new element — update selection
+                // Tap outside -> clear lasso multi-selection & find hit element
+                lassoSelectedElements.clear()
                 val hit = snapshot.lastOrNull { el ->
-                    p.x >= el.boundingBox.left && p.x <= el.boundingBox.right &&
-                    p.y >= el.boundingBox.top && p.y <= el.boundingBox.bottom
+                    val b = el.boundingBox
+                    val minL = minOf(b.left, b.right)
+                    val minT = minOf(b.top, b.bottom)
+                    val maxR = maxOf(b.left, b.right)
+                    val maxB = maxOf(b.top, b.bottom)
+                    p.x >= minL && p.x <= maxR && p.y >= minT && p.y <= maxB
                 }
+
+                if (hit is TextBox) {
+                    val now = System.currentTimeMillis()
+                    if (hit.id == lastTappedTextBoxId && (now - lastTextBoxTapTimeMs) < 350L) {
+                        onEditTextBoxRequested?.invoke(hit)
+                        lastTappedTextBoxId = null
+                        return
+                    } else {
+                        lastTappedTextBoxId = hit.id
+                        lastTextBoxTapTimeMs = now
+                    }
+                } else {
+                    lastTappedTextBoxId = null
+                }
+
                 selectedElement = hit
                 selectionHandler.selectAt(snapshot, p.x, p.y)
                 onSelectionChanged?.invoke(hit != null)
@@ -557,31 +565,50 @@ class DrawingCanvasView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
-                val current = selectedElement ?: return
                 val dx = p.x - selectDragLastX
                 val dy = p.y - selectDragLastY
                 selectDragLastX = p.x
                 selectDragLastY = p.y
 
+                val isGroup = lassoSelectedElements.isNotEmpty()
+
                 when {
                     isDraggingSelectedElement -> {
-                        // Move element by dx/dy
-                        val oldBox = current.boundingBox
-                        val newBox = RectData(oldBox.left + dx, oldBox.top + dy, oldBox.right + dx, oldBox.bottom + dy)
-                        val updated = updateElementBoundingBox(current, newBox)
-                        if (updated != null) {
-                            synchronized(localElementsList) {
-                                val idx = localElementsList.indexOfFirst { it.id == current.id }
-                                if (idx >= 0) localElementsList[idx] = updated
+                        if (isGroup) {
+                            val updatedGroup = lassoSelectedElements.mapNotNull { el ->
+                                val oldB = el.boundingBox
+                                val newB = RectData(oldB.left + dx, oldB.top + dy, oldB.right + dx, oldB.bottom + dy)
+                                updateElementBoundingBox(el, newB)
                             }
-                            selectedElement = updated
-                            transformLastElement = updated
+                            synchronized(localElementsList) {
+                                for (up in updatedGroup) {
+                                    val idx = localElementsList.indexOfFirst { it.id == up.id }
+                                    if (idx >= 0) localElementsList[idx] = up
+                                }
+                            }
+                            lassoSelectedElements.clear()
+                            lassoSelectedElements.addAll(updatedGroup)
                             invalidate()
+                        } else {
+                            val current = selectedElement ?: return
+                            val oldBox = current.boundingBox
+                            val newBox = RectData(oldBox.left + dx, oldBox.top + dy, oldBox.right + dx, oldBox.bottom + dy)
+                            val updated = updateElementBoundingBox(current, newBox)
+                            if (updated != null) {
+                                synchronized(localElementsList) {
+                                    val idx = localElementsList.indexOfFirst { it.id == current.id }
+                                    if (idx >= 0) localElementsList[idx] = updated
+                                }
+                                selectedElement = updated
+                                transformLastElement = updated
+                                invalidate()
+                            }
                         }
                     }
 
                     isDraggingCornerHandle -> {
-                        val oldBox = current.boundingBox
+                        val groupBox = getActiveSelectionBox() ?: return
+                        val oldBox = groupBox
                         val newBox = when (draggingCornerIndex) {
                             0 -> RectData(oldBox.left + dx, oldBox.top + dy, oldBox.right, oldBox.bottom) // TL
                             1 -> RectData(oldBox.left, oldBox.top + dy, oldBox.right + dx, oldBox.bottom) // TR
@@ -589,42 +616,71 @@ class DrawingCanvasView @JvmOverloads constructor(
                             3 -> RectData(oldBox.left, oldBox.top, oldBox.right + dx, oldBox.bottom + dy) // BR
                             else -> oldBox
                         }
-                        // Prevent degenerate box
                         val safeBox = if (newBox.right - newBox.left > 20f && newBox.bottom - newBox.top > 20f) newBox else oldBox
-                        val updated = updateElementBoundingBox(current, safeBox)
-                        if (updated != null) {
-                            synchronized(localElementsList) {
-                                val idx = localElementsList.indexOfFirst { it.id == current.id }
-                                if (idx >= 0) localElementsList[idx] = updated
+                        val sx = if (oldBox.width == 0f) 1f else safeBox.width / oldBox.width
+                        val sy = if (oldBox.height == 0f) 1f else safeBox.height / oldBox.height
+
+                        if (isGroup) {
+                            val updatedGroup = lassoSelectedElements.mapNotNull { el ->
+                                val b = el.boundingBox
+                                val nLeft = safeBox.left + (b.left - oldBox.left) * sx
+                                val nTop = safeBox.top + (b.top - oldBox.top) * sy
+                                val nRight = nLeft + b.width * sx
+                                val nBottom = nTop + b.height * sy
+                                updateElementBoundingBox(el, RectData(nLeft, nTop, nRight, nBottom))
                             }
-                            selectedElement = updated
-                            transformLastElement = updated
+                            synchronized(localElementsList) {
+                                for (up in updatedGroup) {
+                                    val idx = localElementsList.indexOfFirst { it.id == up.id }
+                                    if (idx >= 0) localElementsList[idx] = up
+                                }
+                            }
+                            lassoSelectedElements.clear()
+                            lassoSelectedElements.addAll(updatedGroup)
                             invalidate()
+                        } else {
+                            val current = selectedElement ?: return
+                            val updated = updateElementBoundingBox(current, safeBox)
+                            if (updated != null) {
+                                synchronized(localElementsList) {
+                                    val idx = localElementsList.indexOfFirst { it.id == current.id }
+                                    if (idx >= 0) localElementsList[idx] = updated
+                                }
+                                selectedElement = updated
+                                transformLastElement = updated
+                                invalidate()
+                            }
                         }
                     }
 
                     isDraggingTopRotationHandle -> {
-                        if (current is Shape) {
-                            val currentAngle = Math.toDegrees(atan2(
-                                (p.y - current.boundingBox.centerY).toDouble(),
-                                (p.x - current.boundingBox.centerX).toDouble()
-                            )).toFloat()
-                            val delta = currentAngle - initialRotationAngle
-                            initialRotationAngle = currentAngle
-                            val cmd = selectionHandler.createRotateCommand(current, delta)
-                            if (cmd != null) {
-                                val updatedPage = cmd.apply(com.prsnl.document.model.Page(
-                                    "t", "t", 0, documentWidth, documentHeight, currentBackground, snapshot
-                                ))
-                                synchronized(localElementsList) {
-                                    localElementsList.clear()
-                                    localElementsList.addAll(updatedPage.elements)
-                                }
-                                selectedElement = updatedPage.elements.firstOrNull { it.id == current.id }
-                                transformLastElement = selectedElement
-                                invalidate()
+                        val groupBox = getActiveSelectionBox() ?: return
+                        val currentAngle = Math.toDegrees(atan2(
+                            (p.y - groupBox.centerY).toDouble(),
+                            (p.x - groupBox.centerX).toDouble()
+                        )).toFloat()
+                        val delta = currentAngle - initialRotationAngle
+                        initialRotationAngle = currentAngle
+
+                        val targets = if (isGroup) lassoSelectedElements else listOfNotNull(selectedElement)
+                        val updatedGroup = targets.mapNotNull { el ->
+                            rotateElementByAngle(el, groupBox.centerX, groupBox.centerY, delta)
+                        }
+
+                        synchronized(localElementsList) {
+                            for (up in updatedGroup) {
+                                val idx = localElementsList.indexOfFirst { it.id == up.id }
+                                if (idx >= 0) localElementsList[idx] = up
                             }
                         }
+
+                        if (isGroup) {
+                            lassoSelectedElements.clear()
+                            lassoSelectedElements.addAll(updatedGroup)
+                        } else if (updatedGroup.isNotEmpty()) {
+                            selectedElement = updatedGroup.first()
+                        }
+                        invalidate()
                     }
                 }
             }
@@ -638,6 +694,51 @@ class DrawingCanvasView @JvmOverloads constructor(
                 transformStartElement = null
                 transformLastElement = null
             }
+        }
+    }
+
+    private fun rotateElementByAngle(element: Element, originX: Float, originY: Float, angleDeg: Float): Element? {
+        val rad = Math.toRadians(angleDeg.toDouble())
+        val cosA = cos(rad).toFloat()
+        val sinA = sin(rad).toFloat()
+
+        fun rotatePoint(px: Float, py: Float): Pair<Float, Float> {
+            val dx = px - originX
+            val dy = py - originY
+            val nx = originX + (dx * cosA - dy * sinA)
+            val ny = originY + (dx * sinA + dy * cosA)
+            return Pair(nx, ny)
+        }
+
+        return when (element) {
+            is Shape -> {
+                val newAngle = (element.rotation + angleDeg) % 360f
+                element.copy(rotation = newAngle)
+            }
+            is Stroke -> {
+                val newPoints = element.points.map { pt ->
+                    val (nx, ny) = rotatePoint(pt.x, pt.y)
+                    pt.copy(x = nx, y = ny)
+                }
+                val minX = newPoints.minOf { it.x }
+                val minY = newPoints.minOf { it.y }
+                val maxX = newPoints.maxOf { it.x }
+                val maxY = newPoints.maxOf { it.y }
+                element.copy(points = newPoints, boundingBox = RectData(minX, minY, maxX, maxY))
+            }
+            is TextBox -> {
+                val (nx, ny) = rotatePoint(element.boundingBox.left, element.boundingBox.top)
+                val w = element.boundingBox.width
+                val h = element.boundingBox.height
+                element.copy(boundingBox = RectData(nx, ny, nx + w, ny + h))
+            }
+            is ImageElement -> {
+                val (nx, ny) = rotatePoint(element.boundingBox.left, element.boundingBox.top)
+                val w = element.boundingBox.width
+                val h = element.boundingBox.height
+                element.copy(boundingBox = RectData(nx, ny, nx + w, ny + h))
+            }
+            else -> null
         }
     }
 
@@ -681,7 +782,6 @@ class DrawingCanvasView @JvmOverloads constructor(
         }
     }
 
-    /** Returns a copy of [element] with its bounding box replaced by [newBox], for any element type. */
     private fun updateElementBoundingBox(element: Element, newBox: RectData): Element? {
         return when (element) {
             is Shape -> element.copy(boundingBox = newBox)
@@ -746,25 +846,26 @@ class DrawingCanvasView @JvmOverloads constructor(
             val scale = currentCanvasScale()
             canvas.scale(scale, scale)
 
-            // Paper background with page index
+            // Paper background
             backgroundRenderer.renderBackground(canvas, currentBackground, documentWidth, documentHeight, pageIndex = pageIndex)
 
-            val elementsSnapshot = synchronized(localElementsList) { localElementsList.toList() }
-
             // Render committed elements
-            for (element in elementsSnapshot) {
+            val elementsToDraw = synchronized(localElementsList) { localElementsList.toList() }
+            for (element in elementsToDraw) {
                 when (element) {
                     is Stroke -> strokeRenderer.renderCommittedStroke(canvas, element)
                     is Shape -> shapeRenderer.renderShape(canvas, element)
                     is TextBox -> {
-                        canvas.drawText(element.content, element.boundingBox.left, element.boundingBox.top + 28f, textPaint)
+                        textPaint.color = element.color
+                        textPaint.textSize = element.fontSize
+                        canvas.drawText(element.content, element.boundingBox.left, element.boundingBox.top + element.fontSize, textPaint)
                     }
                     is ImageElement -> {
                         try {
-                            val bitmap = BitmapFactory.decodeFile(element.assetPath)
+                            val bitmap = android.graphics.BitmapFactory.decodeFile(element.assetPath)
                             if (bitmap != null) {
-                                val rect = RectF(element.boundingBox.left, element.boundingBox.top, element.boundingBox.right, element.boundingBox.bottom)
-                                canvas.drawBitmap(bitmap, null, rect, null)
+                                val b = element.boundingBox
+                                canvas.drawBitmap(bitmap, null, android.graphics.RectF(b.left, b.top, b.right, b.bottom), null)
                             }
                         } catch (_: Exception) {}
                     }
@@ -789,16 +890,10 @@ class DrawingCanvasView @JvmOverloads constructor(
                 canvas.drawPath(lassoPath, lassoPaint)
             }
 
-            // Render lasso multi-selection highlights
-            for (el in lassoSelectedElements) {
-                val b = el.boundingBox
-                canvas.drawRect(b.left - 4f, b.top - 4f, b.right + 4f, b.bottom + 4f, selectionBoxPaint)
-            }
-
             // Render Selection Bounding Box with Animated Marching-Ants Border & Handles
-            val sel = selectedElement
-            if (sel != null) {
-                val box = sel.boundingBox
+            val activeBox = getActiveSelectionBox()
+            if (activeBox != null) {
+                val box = activeBox
                 dashPhase = (dashPhase + 1.5f) % 32f
                 selectionBoxPaint.pathEffect = DashPathEffect(floatArrayOf(16f, 12f), dashPhase)
 
@@ -868,18 +963,23 @@ class DrawingCanvasView @JvmOverloads constructor(
 
     private fun extractHistoricalPointSafely(event: MotionEvent, index: Int, historyIndex: Int, startTime: Long): StrokePoint? {
         val count = event.pointerCount
-        if (index < 0 || index >= count) return null
+        val hCount = event.historySize
+        if (index < 0 || index >= count || historyIndex < 0 || historyIndex >= hCount) return null
         return try {
-            val (cx, cy) = screenToCanvas(event.getHistoricalX(index, historyIndex), event.getHistoricalY(index, historyIndex))
-            val rawP = if (isPressureSensitivityEnabled) event.getHistoricalPressure(index, historyIndex) else 1.0f
+            val hx = event.getHistoricalX(index, historyIndex)
+            val hy = event.getHistoricalY(index, historyIndex)
             val eventTime = event.getHistoricalEventTime(historyIndex)
+            val (cx, cy) = screenToCanvas(hx, hy)
+            val rawP = if (isPressureSensitivityEnabled) event.getHistoricalPressure(index, historyIndex) else 1.0f
             val dt = (eventTime - lastPointTime).coerceAtLeast(1L)
             val dist = hypot(cx - lastPointX, cy - lastPointY)
             val velocity = dist / dt.toFloat()
+
             val smoothedP = if (isPressureSensitivityEnabled) {
                 if (lastPressure > 0f) 0.75f * lastPressure + 0.25f * rawP else rawP
             } else 1.0f
             lastPressure = smoothedP
+
             val velocityModulation = (1.0f / (1.0f + 0.12f * velocity)).coerceIn(0.3f, 1.0f)
             val finalPressure = if (isPressureSensitivityEnabled) {
                 (smoothedP * 0.7f + velocityModulation * 0.3f).coerceIn(0.2f, 1.2f)
@@ -924,9 +1024,10 @@ class DrawingCanvasView @JvmOverloads constructor(
         return this == MotionEvent.TOOL_TYPE_STYLUS || this == MotionEvent.TOOL_TYPE_ERASER
     }
 
-    private fun MotionEvent.findActivePointerIndex(): Int? {
-        if (activePointerId == MotionEvent.INVALID_POINTER_ID) return actionIndex.coerceIn(0, pointerCount - 1)
-        val index = findPointerIndex(activePointerId)
-        return if (index >= 0) index else null
+    private fun cancelHoldToRecognizeTimer() {
+        holdToRecognizeRunnable?.let {
+            removeCallbacks(it)
+            holdToRecognizeRunnable = null
+        }
     }
 }
