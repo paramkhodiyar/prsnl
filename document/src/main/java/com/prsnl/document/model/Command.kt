@@ -39,8 +39,15 @@ sealed class Command {
         private fun updateBounds(page: Page, targetBounds: RectData): Page {
             val updated = page.elements.map { element ->
                 if (element.id == elementId) {
+                    val dx = targetBounds.left - element.boundingBox.left
+                    val dy = targetBounds.top - element.boundingBox.top
                     when (element) {
-                        is Stroke -> element.copy(boundingBox = targetBounds)
+                        is Stroke -> element.copy(
+                            boundingBox = targetBounds,
+                            points = element.points.map { point ->
+                                point.copy(x = point.x + dx, y = point.y + dy)
+                            }
+                        )
                         is Shape -> element.copy(boundingBox = targetBounds)
                         is TextBox -> element.copy(boundingBox = targetBounds)
                         is ImageElement -> element.copy(boundingBox = targetBounds)
@@ -63,8 +70,19 @@ sealed class Command {
         private fun updateBounds(page: Page, targetBounds: RectData): Page {
             val updated = page.elements.map { element ->
                 if (element.id == elementId) {
+                    val sourceBounds = element.boundingBox
+                    val sx = if (sourceBounds.width == 0f) 1f else targetBounds.width / sourceBounds.width
+                    val sy = if (sourceBounds.height == 0f) 1f else targetBounds.height / sourceBounds.height
                     when (element) {
-                        is Stroke -> element.copy(boundingBox = targetBounds)
+                        is Stroke -> element.copy(
+                            boundingBox = targetBounds,
+                            points = element.points.map { point ->
+                                point.copy(
+                                    x = targetBounds.left + (point.x - sourceBounds.left) * sx,
+                                    y = targetBounds.top + (point.y - sourceBounds.top) * sy
+                                )
+                            }
+                        )
                         is Shape -> element.copy(boundingBox = targetBounds)
                         is TextBox -> element.copy(boundingBox = targetBounds)
                         is ImageElement -> element.copy(boundingBox = targetBounds)

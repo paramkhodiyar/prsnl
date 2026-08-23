@@ -77,6 +77,8 @@ fun FloatingWritingToolbar(
     onFingerDrawingToggle: () -> Unit,
     isPressureSensitivityEnabled: Boolean,
     onPressureSensitivityToggle: () -> Unit,
+    hasSelection: Boolean,
+    onDeleteSelection: () -> Unit,
     onOpenColorWheel: () -> Unit,
     onOpenSettings: () -> Unit,
     onInsertImage: () -> Unit
@@ -211,6 +213,12 @@ fun FloatingWritingToolbar(
                             leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp)) },
                             colors = chipColors
                         )
+
+                        if (hasSelection && (toolMode == CanvasToolMode.SELECT || toolMode == CanvasToolMode.LASSO)) {
+                            IconButton(onClick = onDeleteSelection, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Default.Clear, contentDescription = "Delete Selection", tint = Color(0xFFDC2626))
+                            }
+                        }
 
                         IconButton(onClick = onOpenSettings, modifier = Modifier.size(36.dp)) {
                             Icon(Icons.Default.Settings, contentDescription = "Notebook Settings", tint = Color(0xFFC88A4B))

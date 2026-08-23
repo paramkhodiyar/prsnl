@@ -198,6 +198,12 @@ class PageEditorViewModel(
         _toolMode.value = mode
     }
 
+    fun setActivePageIndex(index: Int) {
+        if (index !in _pagesList.value.indices) return
+        _activePageIndex.value = index
+        updateUndoRedoStates()
+    }
+
     fun changeBackgroundType(type: Background.Type) {
         val pageIndex = _activePageIndex.value
         val currentPages = _pagesList.value.toMutableList()
@@ -228,14 +234,44 @@ class PageEditorViewModel(
         triggerAutosave()
     }
 
+    fun changeLineWeight(newWeight: Float) {
+        updateActiveBackground { background ->
+            background.copy(lineWeight = newWeight.coerceIn(0.25f, 8f))
+        }
+    }
+
+    fun changeLineOpacity(newOpacity: Float) {
+        updateActiveBackground { background ->
+            background.copy(lineOpacity = newOpacity.coerceIn(0f, 1f))
+        }
+    }
+
+    fun changeLineColor(newColor: Int) {
+        updateActiveBackground { background ->
+            background.copy(lineColor = newColor)
+        }
+    }
+
+    fun changeMarginWeight(newWeight: Float) {
+        updateActiveBackground { background ->
+            background.copy(marginWeight = newWeight.coerceIn(0.25f, 10f))
+        }
+    }
+
     fun changePaperColor(colorLight: Int) {
+        updateActiveBackground { background ->
+            background.copy(colorLight = colorLight)
+        }
+    }
+
+    private fun updateActiveBackground(transform: (Background) -> Background) {
         val pageIndex = _activePageIndex.value
         val currentPages = _pagesList.value.toMutableList()
         if (pageIndex !in currentPages.indices) return
 
         val currentPage = currentPages[pageIndex]
         val updatedPage = currentPage.copy(
-            background = currentPage.background.copy(colorLight = colorLight)
+            background = transform(currentPage.background)
         )
         currentPages[pageIndex] = updatedPage
         _pagesList.value = currentPages

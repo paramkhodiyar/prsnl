@@ -51,12 +51,20 @@ fun NotebookSettingsModal(
     onDismiss: () -> Unit,
     onBackgroundTypeChange: (Background.Type) -> Unit,
     onLineSpacingChange: (Float) -> Unit,
+    onLineWeightChange: (Float) -> Unit,
+    onLineOpacityChange: (Float) -> Unit,
+    onLineColorChange: (Int) -> Unit,
+    onMarginWeightChange: (Float) -> Unit,
     onPaperColorChange: (Int) -> Unit,
     onFingerDrawingToggle: () -> Unit,
     onPressureSensitivityToggle: () -> Unit
 ) {
     var selectedType by remember { mutableStateOf(currentBackground.type) }
     var lineSpacing by remember { mutableFloatStateOf(currentBackground.lineSpacing ?: 40f) }
+    var lineWeight by remember { mutableFloatStateOf(currentBackground.lineWeight) }
+    var lineOpacity by remember { mutableFloatStateOf(currentBackground.lineOpacity) }
+    var selectedLineColor by remember { mutableIntStateOf(currentBackground.lineColor) }
+    var marginWeight by remember { mutableFloatStateOf(currentBackground.marginWeight) }
     var selectedPaperColor by remember { mutableIntStateOf(currentBackground.colorLight) }
     val scrollState = rememberScrollState()
 
@@ -81,6 +89,15 @@ fun NotebookSettingsModal(
         Pair("Cool Gray", AndroidColor.parseColor("#F0F2F5")),
         Pair("Charcoal", AndroidColor.parseColor("#1C1C1E")),
         Pair("Pure White", AndroidColor.parseColor("#FFFFFF"))
+    )
+
+    val lineColorSwatches = listOf(
+        Pair("Black", AndroidColor.parseColor("#000000")),
+        Pair("Gray", AndroidColor.parseColor("#6B7280")),
+        Pair("Blue", AndroidColor.parseColor("#2563EB")),
+        Pair("Red", AndroidColor.parseColor("#DC2626")),
+        Pair("Green", AndroidColor.parseColor("#16A34A")),
+        Pair("Purple", AndroidColor.parseColor("#7C3AED"))
     )
 
     AlertDialog(
@@ -239,6 +256,101 @@ fun NotebookSettingsModal(
                             activeTrackColor = Color(0xFFC88A4B)
                         )
                     )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Line Weight", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF5C5850))
+                        Text(String.format("%.1f px", lineWeight), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC88A4B))
+                    }
+                    Slider(
+                        value = lineWeight,
+                        onValueChange = {
+                            lineWeight = it
+                            onLineWeightChange(it)
+                        },
+                        valueRange = 0.25f..6f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFC88A4B),
+                            activeTrackColor = Color(0xFFC88A4B)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Line Visibility", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF5C5850))
+                        Text("${(lineOpacity * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC88A4B))
+                    }
+                    Slider(
+                        value = lineOpacity,
+                        onValueChange = {
+                            lineOpacity = it
+                            onLineOpacityChange(it)
+                        },
+                        valueRange = 0.02f..0.7f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFC88A4B),
+                            activeTrackColor = Color(0xFFC88A4B)
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Line Color", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF5C5850))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        lineColorSwatches.forEach { (_, colorInt) ->
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(colorInt))
+                                    .border(
+                                        width = if (selectedLineColor == colorInt) 3.dp else 1.dp,
+                                        color = if (selectedLineColor == colorInt) Color(0xFFC88A4B) else Color(0xFFE2D7C5),
+                                        shape = CircleShape
+                                    )
+                                    .clickable {
+                                        selectedLineColor = colorInt
+                                        onLineColorChange(colorInt)
+                                    }
+                            )
+                        }
+                    }
+
+                    if (selectedType == Background.Type.MARGIN_RULED) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Margin Weight", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF5C5850))
+                            Text(String.format("%.1f px", marginWeight), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC88A4B))
+                        }
+                        Slider(
+                            value = marginWeight,
+                            onValueChange = {
+                                marginWeight = it
+                                onMarginWeightChange(it)
+                            },
+                            valueRange = 0.5f..8f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFFC88A4B),
+                                activeTrackColor = Color(0xFFC88A4B)
+                            )
+                        )
+                    }
                 }
             }
         },

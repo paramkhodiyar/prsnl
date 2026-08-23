@@ -34,6 +34,7 @@ import com.prsnl.drawing.shape.ShapeRecognizer
 import java.util.UUID
 import kotlin.math.atan2
 import kotlin.math.hypot
+import kotlin.math.min
 
 enum class CanvasToolMode {
     PEN,
@@ -67,6 +68,16 @@ class DrawingCanvasView @JvmOverloads constructor(
     )
 
     var pageIndex: Int = 0
+    var documentWidth: Float = 1200f
+        set(value) {
+            field = value.coerceAtLeast(1f)
+            invalidate()
+        }
+    var documentHeight: Float = 1697f
+        set(value) {
+            field = value.coerceAtLeast(1f)
+            invalidate()
+        }
 
     var isFingerDrawingEnabled: Boolean = true
     var isPressureSensitivityEnabled: Boolean = true
@@ -74,6 +85,8 @@ class DrawingCanvasView @JvmOverloads constructor(
     var onCommandIssued: ((Command) -> Unit)? = null
     var onAutoStylusSwitch: (() -> Unit)? = null
     var onInsertTextBoxRequested: ((x: Float, y: Float) -> Unit)? = null
+    var onInteractionStarted: (() -> Unit)? = null
+    var onSelectionChanged: ((Boolean) -> Unit)? = null
 
     private val strokeRenderer = StrokeRenderer()
     private val shapeRenderer = ShapeRenderer()
@@ -102,8 +115,12 @@ class DrawingCanvasView @JvmOverloads constructor(
     private var isDraggingCornerHandle = false
     private var draggingCornerIndex = -1   // 0=TL, 1=TR, 2=BL, 3=BR
     private var selectedElement: Element? = null
+    private var transformStartElement: Element? = null
+    private var transformLastElement: Element? = null
     private var selectDragLastX = 0f
     private var selectDragLastY = 0f
+    private var activePointerId = MotionEvent.INVALID_POINTER_ID
+    private var isStylusStrokeActive = false
 
     var committedElements: List<Element>
         get() = synchronized(localElementsList) { localElementsList.toList() }
@@ -187,11 +204,23 @@ class DrawingCanvasView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        scaleGestureDetector.onTouchEvent(event)
-
         val action = event.actionMasked
+        if (action == MotionEvent.ACTION_DOWN) {
+            onInteractionStarted?.invoke()
+        }
         val index = event.actionIndex
         val safeIndex = index.coerceIn(0, event.pointerCount - 1)
+        val isStylusEvent = event.hasStylusPointer()
+        val isNavigationGesture = !isStylusStrokeActive && !isStylusEvent && event.pointerCount >= 2
+
+        if (isNavigationGesture) {
+            parent?.requestDisallowInterceptTouchEvent(true)
+            scaleGestureDetector.onTouchEvent(event)
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                parent?.requestDisallowInterceptTouchEvent(false)
+            }
+            return true
+        }
 
         if (!inputFilter.shouldAcceptPointer(event, safeIndex, isFingerDrawingEnabled)) {
             return false
@@ -231,12 +260,14 @@ class DrawingCanvasView @JvmOverloads constructor(
 
     private fun handleDrawingTouch(event: MotionEvent, action: Int, safeIndex: Int) {
         when (action) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+            MotionEvent.ACTION_DOWN -> {
                 strokeStartTimeMs = System.currentTimeMillis()
                 lastPointTime = event.eventTime
                 lastPressure = 0f
 
                 val firstPoint = extractPointSafely(event, safeIndex, strokeStartTimeMs) ?: return
+                activePointerId = event.getPointerId(safeIndex)
+                isStylusStrokeActive = event.getToolType(safeIndex).isStylusTool()
                 lastPointX = firstPoint.x
                 lastPointY = firstPoint.y
 
@@ -260,16 +291,23 @@ class DrawingCanvasView @JvmOverloads constructor(
 
             MotionEvent.ACTION_MOVE -> {
                 val current = activeStroke ?: return
-                val p = extractPointSafely(event, safeIndex, strokeStartTimeMs) ?: return
+                val pointerIndex = event.findActivePointerIndex() ?: return
+                val historySize = event.historySize
+                for (h in 0 until historySize) {
+                    val historical = extractHistoricalPointSafely(event, pointerIndex, h, strokeStartTimeMs)
+                    if (historical != null) current.addPoint(historical)
+                }
+                val p = extractPointSafely(event, pointerIndex, strokeStartTimeMs) ?: return
                 current.addPoint(p)
                 invalidate()
             }
 
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+            MotionEvent.ACTION_UP -> {
                 inputFilter.onPointerUpOrCancel(event, safeIndex)
                 val current = activeStroke
                 if (current != null) {
-                    val p = extractPointSafely(event, safeIndex, strokeStartTimeMs)
+                    val pointerIndex = event.findActivePointerIndex() ?: safeIndex
+                    val p = extractPointSafely(event, pointerIndex, strokeStartTimeMs)
                     if (p != null) current.addPoint(p)
 
                     val snapshot = synchronized(localElementsList) { localElementsList.toList() }
@@ -285,11 +323,15 @@ class DrawingCanvasView @JvmOverloads constructor(
                     onCommandIssued?.invoke(Command.AddElement(committed))
                     invalidate()
                 }
+                activePointerId = MotionEvent.INVALID_POINTER_ID
+                isStylusStrokeActive = false
             }
 
             MotionEvent.ACTION_CANCEL -> {
                 inputFilter.onPointerUpOrCancel(event, safeIndex)
                 activeStroke = null
+                activePointerId = MotionEvent.INVALID_POINTER_ID
+                isStylusStrokeActive = false
                 invalidate()
             }
         }
@@ -404,6 +446,7 @@ class DrawingCanvasView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 lassoPoints.clear()
                 lassoSelectedElements.clear()
+                onSelectionChanged?.invoke(false)
                 lassoPoints.add(p)
                 lassoPath.reset()
                 lassoPath.moveTo(p.x, p.y)
@@ -420,6 +463,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                 val selected = lassoEngine.findElementsInLasso(snapshot, lassoPoints)
                 lassoSelectedElements.clear()
                 lassoSelectedElements.addAll(selected)
+                onSelectionChanged?.invoke(selected.isNotEmpty())
                 // If exactly one element selected, also set it as the single SELECT target
                 if (selected.size == 1) {
                     selectedElement = selected.first()
@@ -449,6 +493,8 @@ class DrawingCanvasView @JvmOverloads constructor(
                 isDraggingSelectedElement = false
                 isDraggingCornerHandle = false
                 draggingCornerIndex = -1
+                transformStartElement = null
+                transformLastElement = null
 
                 val prevSelected = selectedElement
                 if (prevSelected != null) {
@@ -459,6 +505,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                     val topRotateY = bounds.top - 40f
                     if (hypot(p.x - topRotateX, p.y - topRotateY) < 30f) {
                         isDraggingTopRotationHandle = true
+                        transformStartElement = prevSelected
                         initialRotationAngle = Math.toDegrees(atan2(
                             (p.y - bounds.centerY).toDouble(),
                             (p.x - bounds.centerX).toDouble()
@@ -479,6 +526,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                         if (hypot(p.x - corner.first, p.y - corner.second) < 28f) {
                             isDraggingCornerHandle = true
                             draggingCornerIndex = i
+                            transformStartElement = prevSelected
                             selectDragLastX = p.x
                             selectDragLastY = p.y
                             return
@@ -488,6 +536,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                     // Check if inside bounding box to drag/move
                     if (p.x >= bounds.left && p.x <= bounds.right && p.y >= bounds.top && p.y <= bounds.bottom) {
                         isDraggingSelectedElement = true
+                        transformStartElement = prevSelected
                         selectDragLastX = p.x
                         selectDragLastY = p.y
                         return
@@ -501,6 +550,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                 }
                 selectedElement = hit
                 selectionHandler.selectAt(snapshot, p.x, p.y)
+                onSelectionChanged?.invoke(hit != null)
                 selectDragLastX = p.x
                 selectDragLastY = p.y
                 invalidate()
@@ -525,7 +575,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                                 if (idx >= 0) localElementsList[idx] = updated
                             }
                             selectedElement = updated
-                            onCommandIssued?.invoke(Command.MoveElement(current.id, oldBox, newBox))
+                            transformLastElement = updated
                             invalidate()
                         }
                     }
@@ -548,7 +598,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                                 if (idx >= 0) localElementsList[idx] = updated
                             }
                             selectedElement = updated
-                            onCommandIssued?.invoke(Command.ResizeElement(current.id, oldBox, safeBox))
+                            transformLastElement = updated
                             invalidate()
                         }
                     }
@@ -564,13 +614,14 @@ class DrawingCanvasView @JvmOverloads constructor(
                             val cmd = selectionHandler.createRotateCommand(current, delta)
                             if (cmd != null) {
                                 val updatedPage = cmd.apply(com.prsnl.document.model.Page(
-                                    "t", "t", 0, width.toFloat(), height.toFloat(), currentBackground, snapshot
+                                    "t", "t", 0, documentWidth, documentHeight, currentBackground, snapshot
                                 ))
                                 synchronized(localElementsList) {
                                     localElementsList.clear()
                                     localElementsList.addAll(updatedPage.elements)
                                 }
-                                onCommandIssued?.invoke(cmd)
+                                selectedElement = updatedPage.elements.firstOrNull { it.id == current.id }
+                                transformLastElement = selectedElement
                                 invalidate()
                             }
                         }
@@ -579,11 +630,54 @@ class DrawingCanvasView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                commitSelectionTransform()
                 isDraggingTopRotationHandle = false
                 isDraggingSelectedElement = false
                 isDraggingCornerHandle = false
                 draggingCornerIndex = -1
+                transformStartElement = null
+                transformLastElement = null
             }
+        }
+    }
+
+    fun deleteSelection(): Boolean {
+        val targets = buildList {
+            selectedElement?.let { add(it) }
+            addAll(lassoSelectedElements)
+        }.distinctBy { it.id }
+        if (targets.isEmpty()) return false
+
+        synchronized(localElementsList) {
+            localElementsList.removeAll { element -> targets.any { it.id == element.id } }
+        }
+        selectedElement = null
+        lassoSelectedElements.clear()
+        selectionHandler.clearSelection()
+        onSelectionChanged?.invoke(false)
+        val command = if (targets.size == 1) {
+            Command.DeleteElement(targets.first())
+        } else {
+            Command.CompoundCommand(targets.map { Command.DeleteElement(it) })
+        }
+        onCommandIssued?.invoke(command)
+        invalidate()
+        return true
+    }
+
+    private fun commitSelectionTransform() {
+        val start = transformStartElement ?: return
+        val end = transformLastElement ?: selectedElement ?: return
+        if (start.boundingBox == end.boundingBox && start == end) return
+
+        val command = when {
+            isDraggingSelectedElement -> Command.ReplaceElement(start, end)
+            isDraggingCornerHandle -> Command.ReplaceElement(start, end)
+            isDraggingTopRotationHandle -> Command.ReplaceElement(start, end)
+            else -> null
+        }
+        if (command != null) {
+            onCommandIssued?.invoke(command)
         }
     }
 
@@ -593,7 +687,20 @@ class DrawingCanvasView @JvmOverloads constructor(
             is Shape -> element.copy(boundingBox = newBox)
             is ImageElement -> element.copy(boundingBox = newBox)
             is TextBox -> element.copy(boundingBox = newBox)
-            is Stroke -> element.copy(boundingBox = newBox)
+            is Stroke -> {
+                val oldBox = element.boundingBox
+                val sx = if (oldBox.width == 0f) 1f else newBox.width / oldBox.width
+                val sy = if (oldBox.height == 0f) 1f else newBox.height / oldBox.height
+                element.copy(
+                    boundingBox = newBox,
+                    points = element.points.map { point ->
+                        point.copy(
+                            x = newBox.left + (point.x - oldBox.left) * sx,
+                            y = newBox.top + (point.y - oldBox.top) * sy
+                        )
+                    }
+                )
+            }
             else -> null
         }
     }
@@ -610,7 +717,7 @@ class DrawingCanvasView @JvmOverloads constructor(
                 val eraseCommand = eraserEngine.eraseAt(snapshot, p.x, p.y, eraserRadius, mode)
                 if (eraseCommand != null) {
                     val updatedPage = com.prsnl.document.model.Page(
-                        id = "temp", notebookId = "temp", index = 0, width = width.toFloat(), height = height.toFloat(),
+                        id = "temp", notebookId = "temp", index = 0, width = documentWidth, height = documentHeight,
                         background = currentBackground, elements = snapshot
                     )
                     val appliedPage = eraseCommand.apply(updatedPage)
@@ -636,10 +743,11 @@ class DrawingCanvasView @JvmOverloads constructor(
 
             canvas.save()
             canvas.translate(panOffsetX, panOffsetY)
-            canvas.scale(zoomScale, zoomScale)
+            val scale = currentCanvasScale()
+            canvas.scale(scale, scale)
 
             // Paper background with page index
-            backgroundRenderer.renderBackground(canvas, currentBackground, width.toFloat(), height.toFloat(), pageIndex = pageIndex)
+            backgroundRenderer.renderBackground(canvas, currentBackground, documentWidth, documentHeight, pageIndex = pageIndex)
 
             val elementsSnapshot = synchronized(localElementsList) { localElementsList.toList() }
 
@@ -758,9 +866,67 @@ class DrawingCanvasView @JvmOverloads constructor(
         }
     }
 
+    private fun extractHistoricalPointSafely(event: MotionEvent, index: Int, historyIndex: Int, startTime: Long): StrokePoint? {
+        val count = event.pointerCount
+        if (index < 0 || index >= count) return null
+        return try {
+            val (cx, cy) = screenToCanvas(event.getHistoricalX(index, historyIndex), event.getHistoricalY(index, historyIndex))
+            val rawP = if (isPressureSensitivityEnabled) event.getHistoricalPressure(index, historyIndex) else 1.0f
+            val eventTime = event.getHistoricalEventTime(historyIndex)
+            val dt = (eventTime - lastPointTime).coerceAtLeast(1L)
+            val dist = hypot(cx - lastPointX, cy - lastPointY)
+            val velocity = dist / dt.toFloat()
+            val smoothedP = if (isPressureSensitivityEnabled) {
+                if (lastPressure > 0f) 0.75f * lastPressure + 0.25f * rawP else rawP
+            } else 1.0f
+            lastPressure = smoothedP
+            val velocityModulation = (1.0f / (1.0f + 0.12f * velocity)).coerceIn(0.3f, 1.0f)
+            val finalPressure = if (isPressureSensitivityEnabled) {
+                (smoothedP * 0.7f + velocityModulation * 0.3f).coerceIn(0.2f, 1.2f)
+            } else 1.0f
+
+            lastPointX = cx
+            lastPointY = cy
+            lastPointTime = eventTime
+
+            StrokePoint(
+                x = cx,
+                y = cy,
+                pressure = finalPressure,
+                timestampMs = eventTime - startTime
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun screenToCanvas(sx: Float, sy: Float): Pair<Float, Float> {
-        val cx = (sx - panOffsetX) / zoomScale
-        val cy = (sy - panOffsetY) / zoomScale
+        val scale = currentCanvasScale()
+        val cx = (sx - panOffsetX) / scale
+        val cy = (sy - panOffsetY) / scale
         return Pair(cx, cy)
+    }
+
+    private fun currentCanvasScale(): Float {
+        if (width <= 0 || height <= 0) return 1f
+        val fitScale = min(width / documentWidth, height / documentHeight).coerceAtLeast(0.001f)
+        return fitScale * zoomScale
+    }
+
+    private fun MotionEvent.hasStylusPointer(): Boolean {
+        for (i in 0 until pointerCount) {
+            if (getToolType(i).isStylusTool()) return true
+        }
+        return false
+    }
+
+    private fun Int.isStylusTool(): Boolean {
+        return this == MotionEvent.TOOL_TYPE_STYLUS || this == MotionEvent.TOOL_TYPE_ERASER
+    }
+
+    private fun MotionEvent.findActivePointerIndex(): Int? {
+        if (activePointerId == MotionEvent.INVALID_POINTER_ID) return actionIndex.coerceIn(0, pointerCount - 1)
+        val index = findPointerIndex(activePointerId)
+        return if (index >= 0) index else null
     }
 }

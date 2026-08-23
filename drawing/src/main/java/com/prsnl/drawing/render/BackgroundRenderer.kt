@@ -1,6 +1,7 @@
 package com.prsnl.drawing.render
 
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import com.prsnl.document.model.Background
 
@@ -41,8 +42,20 @@ class BackgroundRenderer {
         val bgColor = if (isDarkMode) background.colorDark else background.colorLight
         canvas.drawColor(bgColor)
 
-        linePaint.color = if (isDarkMode) 0x33FFFFFF else 0x22000000
+        linePaint.strokeWidth = background.lineWeight.coerceIn(0.25f, 8f)
+        linePaint.color = if (isDarkMode) {
+            Color.argb((255 * background.lineOpacity.coerceIn(0f, 1f)).toInt(), 255, 255, 255)
+        } else {
+            Color.argb(
+                (255 * background.lineOpacity.coerceIn(0f, 1f)).toInt(),
+                Color.red(background.lineColor),
+                Color.green(background.lineColor),
+                Color.blue(background.lineColor)
+            )
+        }
         dotPaint.color = linePaint.color
+        marginPaint.strokeWidth = background.marginWeight.coerceIn(0.25f, 10f)
+        marginPaint.color = background.marginColor
         textPaint.color = if (isDarkMode) 0x66FFFFFF else 0x66000000
 
         val spacing = (background.lineSpacing ?: 40f).coerceAtLeast(20f)

@@ -1,6 +1,7 @@
 package com.prsnl.ui.editor
 
 import android.graphics.Color as AndroidColor
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -72,6 +73,7 @@ import com.prsnl.drawing.view.DrawingCanvasView
 import com.prsnl.pdf.PdfExporter
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileInputStream
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,6 +99,10 @@ fun PageEditorScreen(
     var isPressureSensitivityEnabled by remember { mutableStateOf(true) }
     var showSettingsModal by remember { mutableStateOf(false) }
     var showColorWheel by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exportFilename by remember(notebookTitle) { mutableStateOf(defaultPdfFilename(notebookTitle)) }
+    var hasCanvasSelection by remember { mutableStateOf(false) }
+    val canvasViews = remember { mutableMapOf<Int, DrawingCanvasView>() }
 
     // Typer Text Box State
     var pendingTextInsertPos by remember { mutableStateOf<Pair<Float, Float>?>(null) }
@@ -104,30 +110,73 @@ fun PageEditorScreen(
 
     val activePage = pagesList.getOrNull(activePageIndex) ?: pagesList.firstOrNull()
 
+    val exportPdfLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri: Uri? ->
+        if (uri != null && pagesList.isNotEmpty()) {
+            val tempFile = File(context.cacheDir, "export_${UUID.randomUUID()}.pdf")
+            val success = PdfExporter().exportPagesToPdf(pagesList, tempFile)
+            if (success) {
+                try {
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        FileInputStream(tempFile).use { input -> input.copyTo(output) }
+                    }
+                    Toast.makeText(context, "PDF exported successfully.", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    android.util.Log.e("PageEditorScreen", "Failed to write exported PDF", e)
+                    Toast.makeText(context, "Could not save PDF to the selected location.", Toast.LENGTH_LONG).show()
+                } finally {
+                    tempFile.delete()
+                }
+            } else {
+                Toast.makeText(context, "Export PDF failed.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     // Image Picker Launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null && activePage != null) {
             try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val imageFile = File(context.filesDir, "img_${UUID.randomUUID()}.png")
-                val outputStream = FileOutputStream(imageFile)
-                inputStream?.copyTo(outputStream)
-                inputStream?.close()
-                outputStream.close()
+                val imageFile = File(context.filesDir, "img_${UUID.randomUUID()}")
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    FileOutputStream(imageFile).use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                } ?: throw IllegalStateException("Unable to open selected image")
+
+                val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(imageFile.absolutePath, boundsOptions)
+                val imageWidth = boundsOptions.outWidth
+                val imageHeight = boundsOptions.outHeight
+                if (imageWidth <= 0 || imageHeight <= 0) {
+                    imageFile.delete()
+                    throw IllegalArgumentException("Unsupported or corrupted image")
+                }
+
+                val maxWidth = activePage.width * 0.6f
+                val maxHeight = activePage.height * 0.45f
+                val scale = minOf(maxWidth / imageWidth.toFloat(), maxHeight / imageHeight.toFloat(), 1f)
+                val placedWidth = imageWidth * scale
+                val placedHeight = imageHeight * scale
+                val left = (activePage.width - placedWidth) / 2f
+                val top = (activePage.height - placedHeight) / 3f
 
                 val newImage = ImageElement(
                     id = UUID.randomUUID().toString(),
                     zIndex = (activePage?.elements?.maxOfOrNull { it.zIndex } ?: -1) + 1,
-                    boundingBox = RectData(100f, 100f, 500f, 500f),
+                    boundingBox = RectData(left, top, left + placedWidth, top + placedHeight),
                     createdAt = System.currentTimeMillis(),
                     assetPath = imageFile.absolutePath
                 )
                 viewModel.executeCommand(activePageIndex, Command.AddElement(newImage))
                 viewModel.setToolMode(CanvasToolMode.SELECT)
+                Toast.makeText(context, "Image added. Use Select to move or resize it.", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 android.util.Log.e("PageEditorScreen", "Failed to save image attachment", e)
+                Toast.makeText(context, "Could not import that image.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -170,13 +219,8 @@ fun PageEditorScreen(
                         IconButton(
                             onClick = {
                                 if (pagesList.isNotEmpty()) {
-                                    val pdfFile = File(context.cacheDir, "${notebookTitle.replace(" ", "_")}.pdf")
-                                    val success = PdfExporter().exportPagesToPdf(pagesList, pdfFile)
-                                    if (success) {
-                                        Toast.makeText(context, "Exported PDF to ${pdfFile.name}!", Toast.LENGTH_LONG).show()
-                                    } else {
-                                        Toast.makeText(context, "Export PDF failed.", Toast.LENGTH_SHORT).show()
-                                    }
+                                    exportFilename = defaultPdfFilename(notebookTitle)
+                                    showExportDialog = true
                                 }
                             }
                         ) {
@@ -279,7 +323,7 @@ fun PageEditorScreen(
                                         .widthIn(max = 1000.dp)
                                         .aspectRatio(1f / 1.414f),
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    colors = CardDefaults.cardColors(containerColor = Color(singlePage.background.colorLight)),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                                 ) {
                                     AndroidView(
@@ -293,8 +337,19 @@ fun PageEditorScreen(
                                                 this.currentBackground = singlePage.background
                                                 this.committedElements = singlePage.elements
                                                 this.pageIndex = index
+                                                this.documentWidth = singlePage.width
+                                                this.documentHeight = singlePage.height
                                                 this.isFingerDrawingEnabled = isFingerDrawingEnabled
                                                 this.isPressureSensitivityEnabled = isPressureSensitivityEnabled
+                                                this.onInteractionStarted = {
+                                                    viewModel.setActivePageIndex(index)
+                                                }
+                                                this.onSelectionChanged = { hasSelection ->
+                                                    if (hasSelection) {
+                                                        viewModel.setActivePageIndex(index)
+                                                    }
+                                                    hasCanvasSelection = hasSelection
+                                                }
                                                 this.onCommandIssued = { command ->
                                                     viewModel.executeCommand(index, command)
                                                 }
@@ -310,6 +365,7 @@ fun PageEditorScreen(
                                                 this.onInsertTextBoxRequested = { x, y ->
                                                     pendingTextInsertPos = Pair(x, y)
                                                 }
+                                                canvasViews[index] = this
                                             }
                                         },
                                         update = { view ->
@@ -321,6 +377,8 @@ fun PageEditorScreen(
                                             view.currentBackground = singlePage.background
                                             view.committedElements = singlePage.elements
                                             view.pageIndex = index
+                                            view.documentWidth = singlePage.width
+                                            view.documentHeight = singlePage.height
                                             view.isFingerDrawingEnabled = isFingerDrawingEnabled
                                             view.isPressureSensitivityEnabled = isPressureSensitivityEnabled
                                         },
@@ -356,6 +414,13 @@ fun PageEditorScreen(
                             onFingerDrawingToggle = { isFingerDrawingEnabled = !isFingerDrawingEnabled },
                             isPressureSensitivityEnabled = isPressureSensitivityEnabled,
                             onPressureSensitivityToggle = { isPressureSensitivityEnabled = !isPressureSensitivityEnabled },
+                            hasSelection = hasCanvasSelection,
+                            onDeleteSelection = {
+                                val deleted = canvasViews[activePageIndex]?.deleteSelection() ?: false
+                                if (!deleted) {
+                                    hasCanvasSelection = false
+                                }
+                            },
                             onOpenColorWheel = { showColorWheel = true },
                             onOpenSettings = { showSettingsModal = true },
                             onInsertImage = { imagePickerLauncher.launch("image/*") }
@@ -418,6 +483,48 @@ fun PageEditorScreen(
             )
         }
 
+        if (showExportDialog) {
+            AlertDialog(
+                onDismissRequest = { showExportDialog = false },
+                containerColor = Color(0xFFF5F0E6),
+                titleContentColor = Color(0xFF2D2B28),
+                textContentColor = Color(0xFF2D2B28),
+                title = { Text("Export PDF", fontWeight = FontWeight.Bold) },
+                text = {
+                    OutlinedTextField(
+                        value = exportFilename,
+                        onValueChange = { exportFilename = it },
+                        label = { Text("Filename", color = Color(0xFF5C5850)) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFC88A4B),
+                            unfocusedBorderColor = Color(0xFFE2D7C5),
+                            focusedTextColor = Color(0xFF2D2B28),
+                            unfocusedTextColor = Color(0xFF2D2B28)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val safeName = sanitizePdfFilename(exportFilename)
+                            exportFilename = safeName
+                            showExportDialog = false
+                            exportPdfLauncher.launch(safeName)
+                        }
+                    ) {
+                        Text("Choose Location", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showExportDialog = false }) {
+                        Text("Cancel", color = Color(0xFF5C5850))
+                    }
+                }
+            )
+        }
+
         if (showSettingsModal && activePage != null) {
             NotebookSettingsModal(
                 currentBackground = activePage.background,
@@ -429,6 +536,18 @@ fun PageEditorScreen(
                 },
                 onLineSpacingChange = { newSpacing ->
                     viewModel.changeLineSpacing(newSpacing)
+                },
+                onLineWeightChange = { newWeight ->
+                    viewModel.changeLineWeight(newWeight)
+                },
+                onLineOpacityChange = { newOpacity ->
+                    viewModel.changeLineOpacity(newOpacity)
+                },
+                onLineColorChange = { newColor ->
+                    viewModel.changeLineColor(newColor)
+                },
+                onMarginWeightChange = { newWeight ->
+                    viewModel.changeMarginWeight(newWeight)
                 },
                 onPaperColorChange = { newColor ->
                     viewModel.changePaperColor(newColor)
@@ -449,4 +568,18 @@ fun PageEditorScreen(
             )
         }
     }
+}
+
+private fun defaultPdfFilename(title: String): String {
+    return sanitizePdfFilename(title.ifBlank { "Notebook" })
+}
+
+private fun sanitizePdfFilename(rawName: String): String {
+    val cleaned = rawName
+        .trim()
+        .replace(Regex("[\\\\/:*?\"<>|]+"), "_")
+        .replace(Regex("\\s+"), " ")
+        .ifBlank { "Notebook" }
+    val withoutPdf = cleaned.removeSuffix(".pdf").removeSuffix(".PDF")
+    return "$withoutPdf.pdf"
 }

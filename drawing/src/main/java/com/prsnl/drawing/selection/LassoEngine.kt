@@ -1,6 +1,7 @@
 package com.prsnl.drawing.selection
 
 import com.prsnl.document.model.Element
+import com.prsnl.document.model.Stroke
 import com.prsnl.document.model.StrokePoint
 
 class LassoEngine {
@@ -12,7 +13,30 @@ class LassoEngine {
         val polyY = lassoPoints.map { it.y }
 
         return elements.filter { element ->
-            isPointInPolygon(element.boundingBox.centerX, element.boundingBox.centerY, polyX, polyY)
+            when (element) {
+                is Stroke -> {
+                    val testedPoints = element.points
+                    if (testedPoints.isEmpty()) {
+                        isPointInPolygon(element.boundingBox.centerX, element.boundingBox.centerY, polyX, polyY)
+                    } else {
+                        val insideCount = testedPoints.count { point ->
+                            isPointInPolygon(point.x, point.y, polyX, polyY)
+                        }
+                        insideCount >= 2 || insideCount >= (testedPoints.size * 0.35f).toInt().coerceAtLeast(1)
+                    }
+                }
+                else -> {
+                    val b = element.boundingBox
+                    val probes = listOf(
+                        b.centerX to b.centerY,
+                        b.left to b.top,
+                        b.right to b.top,
+                        b.left to b.bottom,
+                        b.right to b.bottom
+                    )
+                    probes.count { (x, y) -> isPointInPolygon(x, y, polyX, polyY) } >= 1
+                }
+            }
         }
     }
 

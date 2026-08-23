@@ -197,6 +197,11 @@ class NotebookRepositoryImpl(
             background = Background(
                 type = Background.Type.valueOf(backgroundType),
                 lineSpacing = lineSpacing,
+                lineWeight = lineWeight,
+                lineOpacity = lineOpacity,
+                lineColor = lineColor,
+                marginWeight = marginWeight,
+                marginColor = marginColor,
                 colorLight = colorLight,
                 colorDark = colorDark,
                 pdfSourceRef = pdfSourceRef
@@ -215,6 +220,11 @@ class NotebookRepositoryImpl(
             height = height,
             backgroundType = background.type.name,
             lineSpacing = background.lineSpacing,
+            lineWeight = background.lineWeight,
+            lineOpacity = background.lineOpacity,
+            lineColor = background.lineColor,
+            marginWeight = background.marginWeight,
+            marginColor = background.marginColor,
             colorLight = background.colorLight,
             colorDark = background.colorDark,
             pdfSourceRef = background.pdfSourceRef,
