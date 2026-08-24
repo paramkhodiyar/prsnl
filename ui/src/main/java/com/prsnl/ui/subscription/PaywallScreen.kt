@@ -2,6 +2,7 @@ package com.prsnl.ui.subscription
 
 import android.widget.Toast
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -47,18 +47,10 @@ fun PaywallScreen(
     var isProcessingPayment by remember { mutableStateOf(false) }
     var isPaymentSuccess by remember { mutableStateOf(false) }
 
-    val gradientBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF1E1B4B),
-            Color(0xFF0F172A),
-            Color(0xFF020617)
-        )
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(gradientBrush)
+            .background(Color(0xFFFBF9F4)) // Light warm paper background
     ) {
         Column(
             modifier = Modifier
@@ -78,38 +70,40 @@ fun PaywallScreen(
                     onClick = onDismiss,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.1f))
+                        .background(Color(0xFFF0ECE1))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = Color.White
+                        tint = Color(0xFF2D2B28)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Pro Badge
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xFFF59E0B), Color(0xFFD97706))))
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            // Pro Stationery Badge
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFFFF3DC),
+                border = BorderStroke(1.dp, Color(0xFFF59E0B))
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
-                        tint = Color.Black,
+                        tint = Color(0xFFD97706),
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "PRSNL PRO",
-                        color = Color.Black,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 12.sp,
+                        text = "PRSNL PRO • STATIONERY EDITION",
+                        color = Color(0xFF2D2B28),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
                         letterSpacing = 1.sp
                     )
                 }
@@ -120,8 +114,8 @@ fun PaywallScreen(
             // Title & Subtitle
             Text(
                 text = stringResource(R.string.paywall_title),
-                color = Color.White,
-                fontSize = 28.sp,
+                color = Color(0xFF2D2B28),
+                fontSize = 26.sp,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
             )
@@ -130,18 +124,19 @@ fun PaywallScreen(
 
             Text(
                 text = stringResource(R.string.paywall_subtitle),
-                color = Color.White.copy(alpha = 0.7f),
+                color = Color(0xFF5C5850),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp),
                 lineHeight = 20.sp
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Feature List Matrix
+            // Feature List Matrix Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE5DEC9)),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -156,7 +151,7 @@ fun PaywallScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Main Plan Card (₹299/year)
             PlanOptionCard(
@@ -165,20 +160,21 @@ fun PaywallScreen(
                 onSelect = { selectedPlan = SubscriptionPlan.PRO_YEARLY }
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // Success Card or Animated CTA Button
+            // Success Card or Solid Tactile CTA Button
             AnimatedContent(
                 targetState = isPaymentSuccess,
                 label = "PaymentState"
             ) { success ->
                 if (success) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF065F46)),
-                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                        border = BorderStroke(1.dp, Color(0xFFA5D6A7)),
+                        shape = RoundedCornerShape(18.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(64.dp)
+                            .height(60.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize(),
@@ -188,13 +184,13 @@ fun PaywallScreen(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = Color(0xFF34D399),
-                                modifier = Modifier.size(28.dp)
+                                tint = Color(0xFF1B5E20),
+                                modifier = Modifier.size(26.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Payment Successful! Pro Activated",
-                                color = Color.White,
+                                color = Color(0xFF1B5E20),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -215,54 +211,42 @@ fun PaywallScreen(
                                 }
                             }
                         },
-                        shape = RoundedCornerShape(18.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Unspecified),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2D2B28)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(Color(0xFFF59E0B), Color(0xFFD97706))
-                                    ),
-                                    shape = RoundedCornerShape(18.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isProcessingPayment) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    CircularProgressIndicator(
-                                        color = Color.Black,
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.5.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "Processing mock payment...",
-                                        color = Color.Black,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    )
-                                }
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = null,
-                                        tint = Color.Black,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Upgrade Now • ₹299 / year",
-                                        color = Color.Black,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 16.sp
-                                    )
-                                }
+                        if (isProcessingPayment) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    color = Color(0xFFF59E0B),
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.5.dp
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Processing mock payment...",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = Color(0xFFF59E0B),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Upgrade Now • ₹299 / year",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 16.sp
+                                )
                             }
                         }
                     }
@@ -282,8 +266,9 @@ fun PaywallScreen(
             ) {
                 Text(
                     text = stringResource(R.string.btn_restore_purchases),
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 13.sp
+                    color = Color(0xFF78716C),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -297,21 +282,21 @@ private fun FeatureItem(text: String) {
             modifier = Modifier
                 .size(22.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF10B981))
+                .background(Color(0xFFE8F5E9))
                 .padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                tint = Color.White,
+                tint = Color(0xFF2E7D32),
                 modifier = Modifier.size(14.dp)
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = text,
-            color = Color.White,
+            color = Color(0xFF2D2B28),
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -324,15 +309,16 @@ private fun PlanOptionCard(
     isSelected: Boolean,
     onSelect: () -> Unit
 ) {
-    val borderColor = if (isSelected) Color(0xFFF59E0B) else Color.White.copy(alpha = 0.15f)
-    val backgroundColor = if (isSelected) Color(0xFFF59E0B).copy(alpha = 0.12f) else Color.White.copy(alpha = 0.03f)
+    val borderColor = if (isSelected) Color(0xFFD97706) else Color(0xFFE5DEC9)
+    val backgroundColor = if (isSelected) Color(0xFFFFF8E7) else Color.White
+    val strokeWidth = if (isSelected) 2.dp else 1.dp
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        border = BorderStroke(strokeWidth, borderColor),
         modifier = Modifier
             .fillMaxWidth()
-            .border(2.dp, borderColor, RoundedCornerShape(16.dp))
             .clickable { onSelect() }
     ) {
         Row(
@@ -342,14 +328,17 @@ private fun PlanOptionCard(
             RadioButton(
                 selected = isSelected,
                 onClick = onSelect,
-                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFFF59E0B))
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = Color(0xFFD97706),
+                    unselectedColor = Color(0xFF9E9E9E)
+                )
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = plan.title,
-                        color = Color.White,
+                        color = Color(0xFF2D2B28),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -357,13 +346,14 @@ private fun PlanOptionCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF10B981))
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFE8F5E9))
+                                .border(1.dp, Color(0xFFA5D6A7), RoundedCornerShape(8.dp))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = badge,
-                                color = Color.White,
+                                color = Color(0xFF2E7D32),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -374,16 +364,17 @@ private fun PlanOptionCard(
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = plan.priceFormatted,
-                    color = Color.White,
+                    color = Color(0xFF2D2B28),
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 20.sp
                 )
                 Text(
                     text = plan.billingPeriod,
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = Color(0xFF5C5850),
                     fontSize = 12.sp
                 )
             }
         }
     }
 }
+

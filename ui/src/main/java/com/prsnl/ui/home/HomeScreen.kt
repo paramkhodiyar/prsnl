@@ -7,6 +7,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -164,12 +166,52 @@ fun HomeScreen(
                             }
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
-                                Text(
-                                    text = "prsnl",
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 24.sp,
-                                    color = Color(0xFF2D2B28)
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "prsnl",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 24.sp,
+                                        color = Color(0xFF2D2B28)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    // FREE / PREMIUM Tag near logo
+                                    val isPro = entitlement.isProUser
+                                    val tagBg = if (isPro) Color(0xFFFFF3DC) else Color(0xFFF0ECE1)
+                                    val tagText = if (isPro) "PREMIUM" else "FREE"
+                                    val tagColor = if (isPro) Color(0xFFB45309) else Color(0xFF78716C)
+                                    val tagBorder = if (isPro) Color(0xFFF59E0B) else Color(0xFFD8D2C4)
+
+                                    Surface(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable { onNavigateToPaywall() },
+                                        color = tagBg,
+                                        border = BorderStroke(1.dp, tagBorder)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                        ) {
+                                            if (isPro) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Star,
+                                                    contentDescription = null,
+                                                    tint = tagColor,
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                            }
+                                            Text(
+                                                text = tagText,
+                                                color = tagColor,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 10.sp,
+                                                letterSpacing = 0.5.sp
+                                            )
+                                        }
+                                    }
+                                }
                                 Text(
                                     text = "Folders & Document Storage",
                                     fontSize = 12.sp,
