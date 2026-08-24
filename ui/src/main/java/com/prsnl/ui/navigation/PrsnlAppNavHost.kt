@@ -42,6 +42,7 @@ fun PrsnlAppNavHost(
         // Level 1: Folders Grid
         composable("home") {
             val homeViewModel = remember { HomeViewModel(notebookRepository, folderRepository, subscriptionRepository) }
+            val authViewModel: com.prsnl.ui.auth.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             HomeScreen(
                 viewModel = homeViewModel,
                 onFolderClick = { folderName ->
@@ -70,7 +71,6 @@ fun PrsnlAppNavHost(
                     navController.navigate("auth")
                 },
                 onTriggerSync = {
-                    val authViewModel: com.prsnl.ui.auth.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
                     authViewModel.triggerSync()
                 }
             )
