@@ -48,11 +48,19 @@ fun PrsnlAppNavHost(
                     navController.navigate("folder_detail/$folderName")
                 },
                 onNotebookClick = { notebookId ->
-                    val nb = homeViewModel.notebooks.value.find { it.id == notebookId }
-                    if (nb?.coverStyle == "PDF") {
-                        navController.navigate("pdf_reader/$notebookId")
+                    val cachedNb = homeViewModel.notebooks.value.find { it.id == notebookId }
+                    if (cachedNb != null) {
+                        val route = if (cachedNb.coverStyle == "PDF") "pdf_reader/$notebookId" else "page_editor/$notebookId"
+                        navController.navigate(route)
                     } else {
-                        navController.navigate("page_editor/$notebookId")
+                        // Not yet present in the cached notebooks list — this happens right
+                        // after import, before the reactive notebooks Flow has re-emitted.
+                        // Fall back to a direct one-off lookup instead of guessing.
+                        coroutineScope.launch {
+                            val freshNb = notebookRepository.getNotebookById(notebookId)
+                            val route = if (freshNb?.coverStyle == "PDF") "pdf_reader/$notebookId" else "page_editor/$notebookId"
+                            navController.navigate(route)
+                        }
                     }
                 },
                 onNavigateToPaywall = {
@@ -73,11 +81,19 @@ fun PrsnlAppNavHost(
                 viewModel = homeViewModel,
                 onBackClick = { navController.popBackStack() },
                 onNotebookClick = { notebookId ->
-                    val nb = homeViewModel.notebooks.value.find { it.id == notebookId }
-                    if (nb?.coverStyle == "PDF") {
-                        navController.navigate("pdf_reader/$notebookId")
+                    val cachedNb = homeViewModel.notebooks.value.find { it.id == notebookId }
+                    if (cachedNb != null) {
+                        val route = if (cachedNb.coverStyle == "PDF") "pdf_reader/$notebookId" else "page_editor/$notebookId"
+                        navController.navigate(route)
                     } else {
-                        navController.navigate("page_editor/$notebookId")
+                        // Not yet present in the cached notebooks list — this happens right
+                        // after import, before the reactive notebooks Flow has re-emitted.
+                        // Fall back to a direct one-off lookup instead of guessing.
+                        coroutineScope.launch {
+                            val freshNb = notebookRepository.getNotebookById(notebookId)
+                            val route = if (freshNb?.coverStyle == "PDF") "pdf_reader/$notebookId" else "page_editor/$notebookId"
+                            navController.navigate(route)
+                        }
                     }
                 },
                 onNavigateToPaywall = {

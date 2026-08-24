@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.prsnl.storage"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26

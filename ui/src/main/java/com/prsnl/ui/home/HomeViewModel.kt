@@ -217,14 +217,31 @@ class HomeViewModel(
             try {
                 val pdfTitle = getPdfFileName(context, uri)
                 val tempPdfFile = File(context.cacheDir, "import_${UUID.randomUUID()}.pdf")
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(tempPdfFile).use { output ->
-                        val buffer = ByteArray(64 * 1024)
-                        var read: Int
-                        while (input.read(buffer).also { read = it } != -1) {
-                            output.write(buffer, 0, read)
+                var bytesCopied = 0L
+
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(tempPdfFile).use { output ->
+                            bytesCopied = input.copyTo(output)
+                            output.flush()
                         }
-                        output.flush()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("HomeViewModel", "openInputStream failed, trying fileDescriptor fallback", e)
+                }
+
+                if (bytesCopied == 0L || !tempPdfFile.exists() || tempPdfFile.length() == 0L) {
+                    try {
+                        context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                            java.io.FileInputStream(pfd.fileDescriptor).use { input ->
+                                FileOutputStream(tempPdfFile).use { output ->
+                                    input.copyTo(output)
+                                    output.flush()
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("HomeViewModel", "openFileDescriptor fallback failed", e)
                     }
                 }
 
