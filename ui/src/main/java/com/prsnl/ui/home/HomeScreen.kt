@@ -34,7 +34,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Create
+
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -90,7 +92,8 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onFolderClick: (String) -> Unit,
     onNotebookClick: (String) -> Unit = {},
-    onNavigateToPaywall: () -> Unit = {}
+    onNavigateToPaywall: () -> Unit = {},
+    onNavigateToAuth: () -> Unit = {}
 ) {
     val notebooks by viewModel.notebooks.collectAsState()
     val dbFolders by viewModel.folders.collectAsState()
@@ -234,6 +237,13 @@ fun HomeScreen(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Import PDF",
                                     tint = Color(0xFF4C6EF5)
+                                )
+                            }
+                            IconButton(onClick = { onNavigateToAuth() }) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudSync,
+                                    contentDescription = "Cloud Sync & Account",
+                                    tint = Color(0xFFC88A4B)
                                 )
                             }
                             IconButton(onClick = { showSettingsModal = true }) {

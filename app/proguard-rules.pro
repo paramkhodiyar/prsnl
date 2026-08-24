@@ -25,3 +25,6 @@
 # Retain entity classes in document and storage models
 -keep class com.prsnl.document.model.** { *; }
 -keep class com.prsnl.storage.entity.** { *; }
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+

@@ -65,9 +65,22 @@ fun PrsnlAppNavHost(
                 },
                 onNavigateToPaywall = {
                     navController.navigate("paywall")
+                },
+                onNavigateToAuth = {
+                    navController.navigate("auth")
                 }
             )
         }
+
+        // Auth & Multi-Device Sync Screen
+        composable("auth") {
+            val authViewModel: com.prsnl.ui.auth.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            com.prsnl.ui.auth.AuthScreen(
+                viewModel = authViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
 
         // Level 2: Notebooks Grid inside Folder
         composable(

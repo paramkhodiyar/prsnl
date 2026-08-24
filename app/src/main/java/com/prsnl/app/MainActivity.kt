@@ -25,6 +25,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Schedule nightly 2:00 AM auto-sync
+        try {
+            com.prsnl.storage.sync.NightlySyncWorker.schedule(applicationContext)
+        } catch (e: Exception) {
+            // Ignored if WorkManager initializing
+        }
+
         setContent {
             MaterialTheme {
                 Surface(

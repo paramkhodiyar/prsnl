@@ -20,6 +20,9 @@ interface PageDao {
     @Query("SELECT * FROM pages WHERE id = :id LIMIT 1")
     suspend fun getPageById(id: String): PageEntity?
 
+    @Query("SELECT * FROM pages")
+    suspend fun getAllPagesSync(): List<PageEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPage(page: PageEntity)
 

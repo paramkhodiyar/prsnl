@@ -21,3 +21,5 @@ include(":storage")
 include(":drawing")
 include(":pdf")
 include(":ui")
+include(":desktopApp")
+
