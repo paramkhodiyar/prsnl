@@ -126,6 +126,7 @@ class NotebookRepositoryImpl(
             saveNotebook(newNotebook)
         }
 
+        val defaultBgType = if (existingNotebook?.coverStyle == "PDF") Background.Type.PDF else Background.Type.RULED
         val pageId = UUID.randomUUID().toString()
         val newPage = Page(
             id = pageId,
@@ -134,7 +135,7 @@ class NotebookRepositoryImpl(
             width = 1200f,
             height = 1697f,
             background = Background(
-                type = Background.Type.RULED,
+                type = defaultBgType,
                 lineSpacing = 40f,
                 colorLight = 0xFFFAF8F5.toInt(),
                 colorDark = 0xFF1C1C1E.toInt()

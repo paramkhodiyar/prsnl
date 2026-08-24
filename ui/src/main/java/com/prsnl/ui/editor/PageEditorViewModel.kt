@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -58,25 +59,31 @@ class PageEditorViewModel(
 
     private fun loadNotebookPages() {
         viewModelScope.launch {
-            val firstPage = repository.ensureNotebookAndPage(initialPageId)
-            val notebook = repository.getNotebookById(firstPage.notebookId)
+            val loadedPages = mutableListOf<Page>()
+            var notebook = repository.getNotebookById(initialPageId)
 
             if (notebook != null) {
                 _activeNotebook.value = notebook
                 _notebookTitle.value = notebook.title
-            }
 
-            val loadedPages = mutableListOf<Page>()
-            if (notebook != null && notebook.pages.isNotEmpty()) {
-                for (pId in notebook.pages) {
-                    val loaded = repository.getPageById(pId) ?: if (pId == firstPage.id) firstPage else null
-                    if (loaded != null) {
-                        loadedPages.add(loaded)
+                val pageFlowList = repository.getPagesForNotebook(notebook.id).first()
+                if (pageFlowList.isNotEmpty()) {
+                    loadedPages.addAll(pageFlowList)
+                } else {
+                    for (pId in notebook.pages) {
+                        val p = repository.getPageById(pId)
+                        if (p != null) loadedPages.add(p)
                     }
                 }
             }
 
             if (loadedPages.isEmpty()) {
+                val firstPage = repository.ensureNotebookAndPage(initialPageId)
+                notebook = repository.getNotebookById(firstPage.notebookId)
+                if (notebook != null) {
+                    _activeNotebook.value = notebook
+                    _notebookTitle.value = notebook.title
+                }
                 loadedPages.add(firstPage)
             }
 

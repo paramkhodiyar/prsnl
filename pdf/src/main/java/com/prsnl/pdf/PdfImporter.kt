@@ -139,9 +139,10 @@ class PdfImporter(private val context: Context) {
             width = 1200f,
             height = 1697f,
             background = Background(
-                type = Background.Type.MARGIN_RULED,
-                colorLight = 0xFFFAF8F5.toInt(),
-                colorDark = 0xFF1C1C1E.toInt()
+                type = Background.Type.PDF,
+                colorLight = 0xFFFFFFFF.toInt(),
+                colorDark = 0xFF1C1C1E.toInt(),
+                pdfSourceRef = pageImgFile.absolutePath
             ),
             elements = emptyList()
         )
