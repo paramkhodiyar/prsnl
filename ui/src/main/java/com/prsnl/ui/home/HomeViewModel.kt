@@ -42,8 +42,16 @@ private fun getPdfFileName(context: Context, uri: Uri): String {
 
 class HomeViewModel(
     private val notebookRepository: NotebookRepository,
-    private val folderRepository: FolderRepository
+    private val folderRepository: FolderRepository,
+    private val subscriptionRepository: com.prsnl.core.subscription.SubscriptionRepository = com.prsnl.core.subscription.MockSubscriptionRepositoryImpl()
 ) : ViewModel() {
+
+    val entitlement: StateFlow<com.prsnl.core.subscription.UserEntitlement> = subscriptionRepository.entitlement
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = com.prsnl.core.subscription.UserEntitlement()
+        )
 
     val notebooks: StateFlow<List<Notebook>> = notebookRepository.getAllNotebooks()
         .stateIn(
@@ -220,12 +228,13 @@ class HomeViewModel(
                     }
                 }
 
+                val safeFolder = if (folderName.isBlank()) "Personal" else folderName.trim()
+                createFolder(safeFolder)
+
                 val pdfImporter = PdfImporter(context)
-                val result = pdfImporter.importPdfToNotebook(tempPdfFile, notebookTitle = pdfTitle)
+                val result = pdfImporter.importPdfToNotebook(tempPdfFile, notebookTitle = pdfTitle, targetFolderName = safeFolder)
                 if (result != null) {
                     val (notebook, pages) = result
-                    val safeFolder = if (folderName.isBlank()) "PDF Annotations" else folderName.trim()
-                    createFolder(safeFolder)
 
                     val updatedNotebook = notebook.copy(
                         title = pdfTitle,

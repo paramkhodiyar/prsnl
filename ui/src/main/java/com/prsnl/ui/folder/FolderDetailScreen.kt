@@ -98,11 +98,14 @@ fun FolderDetailScreen(
     folderName: String,
     viewModel: HomeViewModel,
     onBackClick: () -> Unit,
-    onNotebookClick: (String) -> Unit
+    onNotebookClick: (String) -> Unit,
+    onNavigateToPaywall: () -> Unit = {}
 ) {
     val allNotebooks by viewModel.notebooks.collectAsState()
     val allFolders by viewModel.folders.collectAsState()
+    val entitlement by viewModel.entitlement.collectAsState()
     var showCreateNotebookDialog by remember { mutableStateOf(false) }
+    var activeLimitDialog by remember { mutableStateOf<com.prsnl.ui.subscription.LimitType?>(null) }
     var selectedNotebookForMenu by remember { mutableStateOf<Notebook?>(null) }
     val context = LocalContext.current
     var activeToast by remember { mutableStateOf<ToastMessage?>(null) }
@@ -149,11 +152,16 @@ fun FolderDetailScreen(
             floatingActionButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FloatingActionButton(
-                        onClick = { pdfPickerLauncher.launch("application/pdf") },
-                        containerColor = Color(0xFFF5F0E6),
-                        contentColor = Color(0xFFC88A4B),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.border(1.5.dp, Color(0xFFC88A4B), RoundedCornerShape(16.dp))
+                        onClick = {
+                            if (allNotebooks.size >= entitlement.maxNotebooksAllowed) {
+                                activeLimitDialog = com.prsnl.ui.subscription.LimitType.NOTEBOOK_LIMIT
+                            } else {
+                                pdfPickerLauncher.launch("application/pdf")
+                            }
+                        },
+                        containerColor = Color(0xFF4C6EF5),
+                        contentColor = Color.White,
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp),
@@ -166,7 +174,13 @@ fun FolderDetailScreen(
                     }
 
                     FloatingActionButton(
-                        onClick = { showCreateNotebookDialog = true },
+                        onClick = {
+                            if (allNotebooks.size >= entitlement.maxNotebooksAllowed) {
+                                activeLimitDialog = com.prsnl.ui.subscription.LimitType.NOTEBOOK_LIMIT
+                            } else {
+                                showCreateNotebookDialog = true
+                            }
+                        },
                         containerColor = Color(0xFFC88A4B),
                         contentColor = Color.White,
                         shape = RoundedCornerShape(16.dp)
@@ -241,6 +255,14 @@ fun FolderDetailScreen(
                     )
                 }
             }
+        }
+
+        activeLimitDialog?.let { limitType ->
+            com.prsnl.ui.subscription.LimitReachedDialog(
+                limitType = limitType,
+                onUpgradeClick = onNavigateToPaywall,
+                onDismiss = { activeLimitDialog = null }
+            )
         }
 
         if (showCreateNotebookDialog) {
@@ -365,6 +387,23 @@ fun NotebookCard(
                             color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (notebook.coverStyle == "PDF") {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFDC2626))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "PDF",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

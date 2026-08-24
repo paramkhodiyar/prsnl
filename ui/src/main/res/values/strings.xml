@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">prsnl</string>
+
+    <!-- Paywall & Subscription -->
+    <string name="paywall_title">Upgrade to prsnl Pro</string>
+    <string name="paywall_subtitle">Unlock unlimited folders, infinite notebooks, and full PDF stylus markup for just ₹299/year</string>
+    <string name="plan_monthly">Monthly</string>
+    <string name="plan_yearly">Annual Pro</string>
+    <string name="plan_lifetime">Lifetime</string>
+    <string name="btn_start_trial">Upgrade Now • ₹299 / year</string>
+    <string name="btn_restore_purchases">Restore Purchases</string>
+    <string name="feature_unlimited_notebooks">Unlimited Folders &amp; Notebooks</string>
+    <string name="feature_hd_pdf_export">Direct PDF Reader &amp; Stylus Markup</string>
+    <string name="feature_custom_brushes">Pressure-Sensitive Pens &amp; Highlighters</string>
+    <string name="feature_cloud_sync">High-Resolution Vector PDF Export</string>
+</resources>

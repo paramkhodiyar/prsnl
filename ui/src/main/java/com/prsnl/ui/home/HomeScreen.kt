@@ -86,12 +86,16 @@ import com.prsnl.ui.settings.AppSettingsModal
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onFolderClick: (String) -> Unit
+    onFolderClick: (String) -> Unit,
+    onNotebookClick: (String) -> Unit = {},
+    onNavigateToPaywall: () -> Unit = {}
 ) {
     val notebooks by viewModel.notebooks.collectAsState()
     val dbFolders by viewModel.folders.collectAsState()
+    val entitlement by viewModel.entitlement.collectAsState()
 
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var activeLimitDialog by remember { mutableStateOf<com.prsnl.ui.subscription.LimitType?>(null) }
     var selectedFolderForMenu by remember { mutableStateOf<Folder?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -114,9 +118,9 @@ fun HomeScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            viewModel.importPdf(context, uri, "PDF Annotations") { _ ->
+            viewModel.importPdf(context, uri, "Personal") { notebookId ->
                 activeToast = ToastMessage("PDF imported successfully", ToastType.SUCCESS)
-                onFolderClick("PDF Annotations")
+                onNotebookClick(notebookId)
             }
         }
     }
@@ -175,7 +179,15 @@ fun HomeScreen(
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { homePdfPickerLauncher.launch("application/pdf") }) {
+                            IconButton(
+                                onClick = {
+                                    if (notebooks.size >= entitlement.maxNotebooksAllowed) {
+                                        activeLimitDialog = com.prsnl.ui.subscription.LimitType.NOTEBOOK_LIMIT
+                                    } else {
+                                        homePdfPickerLauncher.launch("application/pdf")
+                                    }
+                                }
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Import PDF",
@@ -227,7 +239,13 @@ fun HomeScreen(
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { showCreateFolderDialog = true },
+                    onClick = {
+                        if (dbFolders.size >= entitlement.maxFoldersAllowed) {
+                            activeLimitDialog = com.prsnl.ui.subscription.LimitType.FOLDER_LIMIT
+                        } else {
+                            showCreateFolderDialog = true
+                        }
+                    },
                     containerColor = Color(0xFFC88A4B),
                     contentColor = Color.White,
                     shape = RoundedCornerShape(16.dp)
@@ -313,6 +331,14 @@ fun HomeScreen(
         }
 
         // Modals & Dialogs
+        activeLimitDialog?.let { limitType ->
+            com.prsnl.ui.subscription.LimitReachedDialog(
+                limitType = limitType,
+                onUpgradeClick = onNavigateToPaywall,
+                onDismiss = { activeLimitDialog = null }
+            )
+        }
+
         if (showCreateFolderDialog) {
             CreateFolderDialog(
                 onDismiss = { showCreateFolderDialog = false },

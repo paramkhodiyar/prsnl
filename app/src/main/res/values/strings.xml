@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">prsnl</string>
+    <string name="app_subtitle">Handwritten Notes &amp; PDF Markup for Android</string>
+
+    <!-- Paywall & Subscription -->
+    <string name="paywall_title">Unlock prsnl Pro</string>
+    <string name="paywall_subtitle">Infinite notebooks, HD vector export, advanced stylus tools &amp; cloud backup</string>
+    <string name="plan_monthly">Monthly</string>
+    <string name="plan_yearly">Yearly</string>
+    <string name="plan_lifetime">Lifetime</string>
+    <string name="btn_start_trial">Start 7-Day Free Trial</string>
+    <string name="btn_restore_purchases">Restore Purchases</string>
+    <string name="feature_unlimited_notebooks">Unlimited Notebooks &amp; Pages</string>
+    <string name="feature_hd_pdf_export">HD Vector PDF Export &amp; Markup</string>
+    <string name="feature_custom_brushes">Pressure-Sensitive Custom Brushes</string>
+    <string name="feature_cloud_sync">Encrypted Cloud Backup &amp; Sync</string>
+</resources>
