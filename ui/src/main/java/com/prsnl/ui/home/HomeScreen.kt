@@ -177,44 +177,6 @@ fun HomeScreen(
                                         fontSize = 24.sp,
                                         color = Color(0xFF2D2B28)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    // FREE / PREMIUM Tag near logo
-                                    val isPro = entitlement.isProUser
-                                    val tagBg = if (isPro) Color(0xFFFFF3DC) else Color(0xFFF0ECE1)
-                                    val tagText = if (isPro) "PREMIUM" else "FREE"
-                                    val tagColor = if (isPro) Color(0xFFB45309) else Color(0xFF78716C)
-                                    val tagBorder = if (isPro) Color(0xFFF59E0B) else Color(0xFFD8D2C4)
-
-                                    Surface(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .clickable { onNavigateToPaywall() },
-                                        color = tagBg,
-                                        border = BorderStroke(1.dp, tagBorder)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                        ) {
-                                            if (isPro) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Star,
-                                                    contentDescription = null,
-                                                    tint = tagColor,
-                                                    modifier = Modifier.size(11.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(3.dp))
-                                            }
-                                            Text(
-                                                text = tagText,
-                                                color = tagColor,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 10.sp,
-                                                letterSpacing = 0.5.sp
-                                            )
-                                        }
-                                    }
                                 }
                                 Text(
                                     text = "Folders & Document Storage",
@@ -227,11 +189,7 @@ fun HomeScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
                                 onClick = {
-                                    if (notebooks.size >= entitlement.maxNotebooksAllowed) {
-                                        activeLimitDialog = com.prsnl.ui.subscription.LimitType.NOTEBOOK_LIMIT
-                                    } else {
-                                        homePdfPickerLauncher.launch("application/pdf")
-                                    }
+                                    homePdfPickerLauncher.launch("application/pdf")
                                 }
                             ) {
                                 Icon(
@@ -377,11 +335,7 @@ fun HomeScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
-                        if (dbFolders.size >= entitlement.maxFoldersAllowed) {
-                            activeLimitDialog = com.prsnl.ui.subscription.LimitType.FOLDER_LIMIT
-                        } else {
-                            showCreateFolderDialog = true
-                        }
+                        showCreateFolderDialog = true
                     },
                     containerColor = Color(0xFFC88A4B),
                     contentColor = Color.White,

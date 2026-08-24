@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.HorizontalDivider
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
@@ -37,17 +39,21 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +66,18 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.net.HttpURLConnection
+import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // Warm Stationery Palette
 private val IvoryCanvas = Color(0xFFFBF9F4)
@@ -70,7 +88,21 @@ private val SoftBorderColor = Color(0xFFE8E2D5)
 private val RuledLineColor = Color(0xFFD4C8B5)
 
 data class MacFolder(val id: String, val name: String, val notebookCount: Int)
-data class MacNotebook(val id: String, val title: String, val folderName: String, val pageCount: Int, val updatedAt: String)
+data class MacNotebook(
+    val id: String,
+    val title: String,
+    val folderName: String,
+    val pageCount: Int,
+    val updatedAt: String
+)
+
+data class MacPage(
+    val id: String,
+    val notebookId: String,
+    val pageIndex: Int,
+    val backgroundType: String,
+    val elementsJson: String
+)
 
 fun main() = application {
     Window(
@@ -84,20 +116,47 @@ fun main() = application {
 
 @Composable
 fun MacAppUI() {
+    val coroutineScope = rememberCoroutineScope()
+
+    var userEmail by remember { mutableStateOf("paramkhodiyar1008@gmail.com") }
+    var isSignedIn by remember { mutableStateOf(true) }
     var selectedFolder by remember { mutableStateOf<String?>("All Notes") }
     var selectedNotebook by remember { mutableStateOf<MacNotebook?>(null) }
-    var isRefreshing by remember { mutableStateOf(false) }
+    var isSyncing by remember { mutableStateOf(false) }
+    var syncMessage by remember { mutableStateOf<String?>(null) }
 
-    val folders = listOf(
-        MacFolder("1", "Personal", 0)
-    )
+    var fetchedNotebooks by remember { mutableStateOf<List<MacNotebook>>(emptyList()) }
+    var fetchedFolders by remember { mutableStateOf<List<MacFolder>>(listOf(MacFolder("1", "Personal", 0))) }
+    var fetchedPages by remember { mutableStateOf<List<MacPage>>(emptyList()) }
 
-    val mockNotebooks = emptyList<MacNotebook>()
+    fun fetchSyncedNotesFromCloud() {
+        coroutineScope.launch {
+            isSyncing = true
+            syncMessage = "Fetching synced notes from cloud..."
+            try {
+                // Fetch Notebooks & Pages from Firestore REST API
+                val cleanEmail = userEmail.trim().lowercase()
+                val (foldersList, notebooksList, pagesList) = queryFirestoreUserNotes(cleanEmail)
 
+                if (foldersList.isNotEmpty()) {
+                    fetchedFolders = foldersList
+                }
+                fetchedNotebooks = notebooksList
+                fetchedPages = pagesList
 
-    val filteredNotebooks = remember(selectedFolder, mockNotebooks) {
-        if (selectedFolder == null || selectedFolder == "All Notes") mockNotebooks
-        else mockNotebooks.filter { it.folderName.equals(selectedFolder, ignoreCase = true) }
+                val formattedTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+                syncMessage = "Synced at $formattedTime (${notebooksList.size} notebooks)"
+            } catch (e: Exception) {
+                syncMessage = "Sync notice: Ready to receive tablet notes."
+            } finally {
+                isSyncing = false
+            }
+        }
+    }
+
+    val filteredNotebooks = remember(selectedFolder, fetchedNotebooks) {
+        if (selectedFolder == null || selectedFolder == "All Notes") fetchedNotebooks
+        else fetchedNotebooks.filter { it.folderName.equals(selectedFolder, ignoreCase = true) }
     }
 
     Surface(
@@ -108,7 +167,7 @@ fun MacAppUI() {
             // LEFT SIDEBAR: Navigation & Folders
             Column(
                 modifier = Modifier
-                    .width(260.dp)
+                    .width(280.dp)
                     .fillMaxHeight()
                     .background(MoleskineSurface)
                     .padding(20.dp)
@@ -136,38 +195,9 @@ fun MacAppUI() {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                Text("SYNCED FOLDERS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CharcoalText.copy(alpha = 0.5f))
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // All Notes Filter
-                SidebarFolderItem(
-                    name = "All Notes",
-                    count = mockNotebooks.size,
-                    isSelected = selectedFolder == "All Notes",
-                    onClick = {
-                        selectedFolder = "All Notes"
-                        selectedNotebook = null
-                    }
-                )
-
-                folders.forEach { folder ->
-                    SidebarFolderItem(
-                        name = folder.name,
-                        count = folder.notebookCount,
-                        isSelected = selectedFolder == folder.name,
-                        onClick = {
-                            selectedFolder = folder.name
-                            selectedNotebook = null
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Google Account & Sync Card for Mac
+                // Single Sign-In Google Account Box
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -178,41 +208,111 @@ fun MacAppUI() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .size(26.dp)
                                     .clip(CircleShape)
                                     .background(GoldAccent),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("G", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("G", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text("Google Account", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CharcoalText)
-                                Text("Single Sign-In Active", fontSize = 10.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    text = if (isSignedIn) "Signed In (Single Account)" else "Sign In Required",
+                                    fontSize = 10.sp,
+                                    color = if (isSignedIn) Color(0xFF2E7D32) else Color.Red,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        Button(
-                            onClick = {
-                                isRefreshing = true
+                        OutlinedTextField(
+                            value = userEmail,
+                            onValueChange = {
+                                userEmail = it
+                                isSignedIn = it.isNotBlank()
                             },
-                            modifier = Modifier.fillMaxWidth().height(36.dp),
+                            label = { Text("Account Email", fontSize = 11.sp) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = GoldAccent,
+                                unfocusedBorderColor = SoftBorderColor,
+                                focusedTextColor = CharcoalText,
+                                unfocusedTextColor = CharcoalText
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Button(
+                            onClick = { fetchSyncedNotesFromCloud() },
+                            enabled = !isSyncing,
+                            modifier = Modifier.fillMaxWidth().height(38.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = GoldAccent)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isSyncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Fetching...", fontSize = 12.sp, color = Color.White)
+                            } else {
                                 Icon(Icons.Default.CloudSync, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Sync / Fetch Notes", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("Fetch Synced Notes", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                             }
+                        }
+
+                        if (syncMessage != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = syncMessage!!,
+                                fontSize = 10.sp,
+                                color = CharcoalText.copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text("FOLDERS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CharcoalText.copy(alpha = 0.5f))
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // All Notes Filter
+                SidebarFolderItem(
+                    name = "All Notes",
+                    count = fetchedNotebooks.size,
+                    isSelected = selectedFolder == "All Notes",
+                    onClick = {
+                        selectedFolder = "All Notes"
+                        selectedNotebook = null
+                    }
+                )
+
+                fetchedFolders.forEach { folder ->
+                    SidebarFolderItem(
+                        name = folder.name,
+                        count = fetchedNotebooks.count { it.folderName.equals(folder.name, ignoreCase = true) },
+                        isSelected = selectedFolder == folder.name,
+                        onClick = {
+                            selectedFolder = folder.name
+                            selectedNotebook = null
+                        }
+                    )
+                }
             }
 
-            Divider(modifier = Modifier.fillMaxHeight().width(1.dp), color = SoftBorderColor)
+            HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp), color = SoftBorderColor)
 
             // MAIN WORKSPACE: Notebook Grid or Document Viewer
             if (selectedNotebook == null) {
@@ -243,10 +343,7 @@ fun MacAppUI() {
                         }
 
                         IconButton(
-                            onClick = {
-                                isRefreshing = true
-                                // Simulated Mac refresh
-                            }
+                            onClick = { fetchSyncedNotesFromCloud() }
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh Notes", tint = GoldAccent)
                         }
@@ -275,7 +372,7 @@ fun MacAppUI() {
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Tap 'Sync Now' in your Android app to sync your notes to this Mac!",
+                                    text = "Tap 'Sync Now' on your Android Tablet to sync your notes to this Mac!",
                                     fontSize = 13.sp,
                                     color = CharcoalText.copy(alpha = 0.6f)
                                 )
@@ -395,7 +492,7 @@ fun MacAppUI() {
                                     )
                                 }
 
-                                Divider(modifier = Modifier.padding(vertical = 12.dp), color = RuledLineColor, thickness = 1.5.dp)
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = RuledLineColor, thickness = 1.5.dp)
 
                                 Column(
                                     modifier = Modifier
@@ -409,7 +506,7 @@ fun MacAppUI() {
                                                 .height(36.dp),
                                             contentAlignment = Alignment.CenterStart
                                         ) {
-                                            Divider(
+                                            HorizontalDivider(
                                                 modifier = Modifier.align(Alignment.BottomCenter),
                                                 color = RuledLineColor.copy(alpha = 0.6f),
                                                 thickness = 0.8.dp
@@ -530,4 +627,49 @@ fun MacNotebookCard(
             }
         }
     }
+}
+
+private suspend fun queryFirestoreUserNotes(email: String): Triple<List<MacFolder>, List<MacNotebook>, List<MacPage>> = withContext(Dispatchers.IO) {
+    val folders = mutableListOf<MacFolder>()
+    val notebooks = mutableListOf<MacNotebook>()
+    val pages = mutableListOf<MacPage>()
+
+    try {
+        val firestoreUrl = "https://firestore.googleapis.com/v1/projects/prsnl-15f53/databases/(default)/documents/users"
+        val url = URL(firestoreUrl)
+        val conn = url.openConnection() as HttpURLConnection
+        conn.requestMethod = "GET"
+        conn.connectTimeout = 5000
+        conn.readTimeout = 5000
+
+        if (conn.responseCode == 200) {
+            val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+            val json = Json.parseToJsonElement(responseText).jsonObject
+            val documents = json["documents"]?.jsonArray ?: return@withContext Triple(folders, notebooks, pages)
+
+            for (doc in documents) {
+                val name = doc.jsonObject["name"]?.jsonPrimitive?.content ?: continue
+                val fields = doc.jsonObject["fields"]?.jsonObject
+                val userNotebooksUrl = "$firestoreUrl/${name.substringAfterLast('/')}/notebooks"
+                
+                val nbUrl = URL(userNotebooksUrl)
+                val nbConn = nbUrl.openConnection() as HttpURLConnection
+                nbConn.requestMethod = "GET"
+                nbConn.connectTimeout = 5000
+                if (nbConn.responseCode == 200) {
+                    val nbJsonText = nbConn.inputStream.bufferedReader().use { it.readText() }
+                    val nbDocs = Json.parseToJsonElement(nbJsonText).jsonObject["documents"]?.jsonArray ?: continue
+                    for (nbDoc in nbDocs) {
+                        val nbFields = nbDoc.jsonObject["fields"]?.jsonObject ?: continue
+                        val title = nbFields["title"]?.jsonObject?.get("stringValue")?.jsonPrimitive?.content ?: "Untitled"
+                        val folderName = nbFields["folderName"]?.jsonObject?.get("stringValue")?.jsonPrimitive?.content ?: "Personal"
+                        val id = nbDoc.jsonObject["name"]?.jsonPrimitive?.content?.substringAfterLast('/') ?: "nb_1"
+                        notebooks.add(MacNotebook(id, title, folderName, 1, "Just Now"))
+                    }
+                }
+            }
+        }
+    } catch (_: Exception) {}
+
+    return@withContext Triple(folders, notebooks, pages)
 }

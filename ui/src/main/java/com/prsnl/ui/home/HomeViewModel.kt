@@ -70,7 +70,7 @@ class HomeViewModel(
     init {
         viewModelScope.launch {
             val existingFolders = folderRepository.getAllFolders().first()
-            if (existingFolders.isEmpty()) {
+            if (existingFolders.none { it.name.equals("Personal", ignoreCase = true) }) {
                 val defaultFolder = Folder(
                     id = UUID.randomUUID().toString(),
                     name = "Personal",
@@ -79,18 +79,6 @@ class HomeViewModel(
                     iconName = "PERSONAL"
                 )
                 folderRepository.saveFolder(defaultFolder)
-
-                val existingNotebooks = notebookRepository.getAllNotebooks().first()
-                if (existingNotebooks.isEmpty()) {
-                    createNotebook(
-                        title = "Personal",
-                        folderName = "Personal",
-                        coverColor = 0xFFC85A32.toInt(),
-                        coverStyle = "PERSONAL",
-                        backgroundType = Background.Type.MARGIN_RULED,
-                        paperColor = 0xFFFAF8F5.toInt()
-                    )
-                }
             }
         }
     }
