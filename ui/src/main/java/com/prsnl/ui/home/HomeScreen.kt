@@ -93,7 +93,8 @@ fun HomeScreen(
     onFolderClick: (String) -> Unit,
     onNotebookClick: (String) -> Unit = {},
     onNavigateToPaywall: () -> Unit = {},
-    onNavigateToAuth: () -> Unit = {}
+    onNavigateToAuth: () -> Unit = {},
+    onTriggerSync: () -> Unit = {}
 ) {
     val notebooks by viewModel.notebooks.collectAsState()
     val dbFolders by viewModel.folders.collectAsState()
@@ -239,6 +240,35 @@ fun HomeScreen(
                                     tint = Color(0xFF4C6EF5)
                                 )
                             }
+                            // "Sync Now" direct action pill
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onTriggerSync() },
+                                color = Color(0xFFFFF8E7),
+                                border = BorderStroke(1.dp, Color(0xFFC88A4B))
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudSync,
+                                        contentDescription = "Sync Now",
+                                        tint = Color(0xFFC88A4B),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Sync Now",
+                                        color = Color(0xFFC88A4B),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+
                             IconButton(onClick = { onNavigateToAuth() }) {
                                 Icon(
                                     imageVector = Icons.Default.CloudSync,
@@ -287,6 +317,61 @@ fun HomeScreen(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Prominent Cloud Sync & Google Sign-In Banner
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFFFFF8E7))
+                            .border(1.5.dp, Color(0xFFC88A4B), RoundedCornerShape(14.dp))
+                            .clickable { onNavigateToAuth() }
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudSync,
+                                    contentDescription = "Cloud Sync",
+                                    tint = Color(0xFFC88A4B),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Multi-Device Online Sync",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2D2B28)
+                                    )
+                                    Text(
+                                        text = "Google Sign-In, Manual Sync Now & Auto-Sync",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF5C5850)
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFC88A4B)
+                            ) {
+                                Text(
+                                    text = "SYNC / SIGN IN",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             },
             floatingActionButton = {
@@ -516,6 +601,10 @@ fun HomeScreen(
                 onUnlockFolder = { folder ->
                     viewModel.updateFolderLock(folder.id, false)
                     activeToast = ToastMessage("Folder unlocked", ToastType.SUCCESS)
+                },
+                onNavigateToAuth = {
+                    showSettingsModal = false
+                    onNavigateToAuth()
                 },
                 onDismiss = { showSettingsModal = false }
             )

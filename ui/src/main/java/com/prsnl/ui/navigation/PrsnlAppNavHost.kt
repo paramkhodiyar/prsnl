@@ -68,6 +68,10 @@ fun PrsnlAppNavHost(
                 },
                 onNavigateToAuth = {
                     navController.navigate("auth")
+                },
+                onTriggerSync = {
+                    val authViewModel: com.prsnl.ui.auth.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+                    authViewModel.triggerSync()
                 }
             )
         }

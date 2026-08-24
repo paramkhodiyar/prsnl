@@ -53,6 +53,7 @@ fun AppSettingsModal(
     lockedFolders: List<Folder>,
     onResetFolderPin: (Folder) -> Unit,
     onUnlockFolder: (Folder) -> Unit,
+    onNavigateToAuth: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -98,6 +99,65 @@ fun AppSettingsModal(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF2D2B28)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Cloud Sync & Account Action Box
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFFF8E7))
+                        .border(1.5.dp, Color(0xFFC88A4B), RoundedCornerShape(12.dp))
+                        .clickable {
+                            onDismiss()
+                            onNavigateToAuth()
+                        }
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFC88A4B)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Cloud Sync & Google Account",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2D2B28)
+                                )
+                                Text(
+                                    text = "Sign in to sync notes across devices",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF5C5850)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "OPEN →",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFC88A4B)
                         )
                     }
                 }

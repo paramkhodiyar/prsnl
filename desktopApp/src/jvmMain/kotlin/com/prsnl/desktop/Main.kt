@@ -167,7 +167,7 @@ fun MacAppUI() {
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Sync Status Footer
+                // Google Account & Sync Card for Mac
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -176,12 +176,38 @@ fun MacAppUI() {
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CloudSync, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(18.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(GoldAccent),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("G", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Cloud Connected", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CharcoalText)
+                            Column {
+                                Text("Google Account", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CharcoalText)
+                                Text("Single Sign-In Active", fontSize = 10.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
+                            }
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Syncs with Android Tablet", fontSize = 10.sp, color = CharcoalText.copy(alpha = 0.6f))
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Button(
+                            onClick = {
+                                isRefreshing = true
+                            },
+                            modifier = Modifier.fillMaxWidth().height(36.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = GoldAccent)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CloudSync, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Sync / Fetch Notes", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
