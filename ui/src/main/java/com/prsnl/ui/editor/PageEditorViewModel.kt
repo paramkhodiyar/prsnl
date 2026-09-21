@@ -439,4 +439,23 @@ class PageEditorViewModel(
             _canRedo.value = false
         }
     }
+
+    fun relinkPdfSource(pdfFile: java.io.File) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentPages = _pagesList.value
+            if (currentPages.isEmpty()) return@launch
+            val updatedPages = currentPages.map { page ->
+                val updatedBg = page.background.copy(
+                    type = Background.Type.PDF,
+                    pdfSourceRef = pdfFile.absolutePath
+                )
+                page.copy(background = updatedBg)
+            }
+            _pagesList.value = updatedPages
+            updatedPages.forEach { page ->
+                repository.savePage(page)
+                undoRedoManagers[page.id]?.updateCurrentPage(page)
+            }
+        }
+    }
 }

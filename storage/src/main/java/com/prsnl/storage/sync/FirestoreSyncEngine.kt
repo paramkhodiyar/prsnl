@@ -1,8 +1,10 @@
 package com.prsnl.storage.sync
 
 import android.content.Context
+import java.io.File
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.storage.FirebaseStorage
 import com.prsnl.storage.PageFileStorage
 import com.prsnl.storage.dao.FolderDao
 import com.prsnl.storage.dao.NotebookDao
@@ -139,14 +141,30 @@ class FirestoreSyncEngine @Inject constructor(
             }
 
             // -------------------------------------------------------------
-            // 3. SYNC PAGES & VECTOR STROKE JSON
+            // 3. SYNC PAGES & VECTOR STROKE JSON & PDF BINARIES
             // -------------------------------------------------------------
             val localPages = pageDao.getAllPagesSync()
             val remotePagesSnapshot = userDocRef.collection("pages").get().await()
 
+            val syncedNotebookPdfs = mutableSetOf<String>()
             for (page in localPages) {
                 val rawFile = java.io.File(context.filesDir, page.elementFilePath)
                 val jsonText = if (rawFile.exists()) rawFile.readText() else "[]"
+
+                // Upload PDF binary to Firebase Storage if not already uploaded in this session
+                if (page.backgroundType == "PDF" && page.notebookId !in syncedNotebookPdfs) {
+                    syncedNotebookPdfs.add(page.notebookId)
+                    val localPdf = resolveLocalPdfFile(context, page.pdfSourceRef, page.notebookId)
+                    if (localPdf != null && localPdf.exists() && localPdf.length() > 0L) {
+                        try {
+                            val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance().reference
+                                .child("users/$userId/pdf_imports/${page.notebookId}/document.pdf")
+                            storageRef.putFile(android.net.Uri.fromFile(localPdf)).await()
+                        } catch (e: Exception) {
+                            android.util.Log.w("FirestoreSyncEngine", "Failed to upload PDF binary for notebook ${page.notebookId}", e)
+                        }
+                    }
+                }
 
                 val pageData = mapOf(
                     "id" to page.id,
@@ -173,6 +191,7 @@ class FirestoreSyncEngine @Inject constructor(
                 userDocRef.collection("pages").document(page.id).set(pageData, SetOptions.merge()).await()
             }
 
+            val downloadedNotebookPdfs = mutableSetOf<String>()
             for (doc in remotePagesSnapshot.documents) {
                 val id = doc.id
                 val notebookId = doc.getString("notebookId") ?: continue
@@ -193,6 +212,29 @@ class FirestoreSyncEngine @Inject constructor(
                 val schemaVersion = doc.getLong("schemaVersion")?.toInt() ?: 1
                 val elementsJson = doc.getString("elementsJson") ?: "[]"
 
+                // If this is a PDF page, ensure local PDF document is downloaded from Firebase Storage
+                var finalPdfRef = pdfSourceRef
+                if (backgroundType == "PDF") {
+                    val localTargetPdf = File(context.filesDir, "pdf_imports/$notebookId/document.pdf")
+                    if (notebookId !in downloadedNotebookPdfs) {
+                        downloadedNotebookPdfs.add(notebookId)
+                        if (!localTargetPdf.exists() || localTargetPdf.length() == 0L) {
+                            localTargetPdf.parentFile?.apply { if (!exists()) mkdirs() }
+                            try {
+                                val storageRef = com.google.firebase.storage.FirebaseStorage.getInstance().reference
+                                    .child("users/$userId/pdf_imports/$notebookId/document.pdf")
+                                storageRef.getFile(localTargetPdf).await()
+                                android.util.Log.i("FirestoreSyncEngine", "Restored PDF binary for $notebookId")
+                            } catch (e: Exception) {
+                                android.util.Log.w("FirestoreSyncEngine", "PDF not found in Storage for $notebookId", e)
+                            }
+                        }
+                    }
+                    if (localTargetPdf.exists() && localTargetPdf.length() > 0L) {
+                        finalPdfRef = localTargetPdf.absolutePath
+                    }
+                }
+
                 // Save page entity to Room
                 val remotePageEntity = PageEntity(
                     id = id,
@@ -209,7 +251,7 @@ class FirestoreSyncEngine @Inject constructor(
                     marginColor = marginColor,
                     colorLight = colorLight,
                     colorDark = colorDark,
-                    pdfSourceRef = pdfSourceRef,
+                    pdfSourceRef = finalPdfRef,
                     elementFilePath = elementFilePath,
                     schemaVersion = schemaVersion
                 )
@@ -217,8 +259,10 @@ class FirestoreSyncEngine @Inject constructor(
 
                 // Save elements JSON to local file storage
                 val localFile = java.io.File(context.filesDir, elementFilePath)
-                localFile.parentFile?.apply { if (!exists()) mkdirs() }
-                localFile.writeText(elementsJson)
+                if (!localFile.exists() || elementsJson.isNotBlank()) {
+                    localFile.parentFile?.apply { if (!exists()) mkdirs() }
+                    localFile.writeText(elementsJson)
+                }
             }
 
             val now = System.currentTimeMillis()
@@ -230,5 +274,27 @@ class FirestoreSyncEngine @Inject constructor(
             _syncState.value = SyncState.ERROR
             Result.failure(e)
         }
+    }
+
+    private fun resolveLocalPdfFile(context: Context, pdfSourceRef: String?, notebookId: String): File? {
+        if (!pdfSourceRef.isNullOrBlank()) {
+            val f = File(pdfSourceRef)
+            if (f.exists() && f.length() > 0L) return f
+            val rel = File(context.filesDir, pdfSourceRef)
+            if (rel.exists() && rel.length() > 0L) return rel
+            if (pdfSourceRef.contains("pdf_imports/")) {
+                val relSub = pdfSourceRef.substringAfter("pdf_imports/")
+                val resolved = File(context.filesDir, "pdf_imports/$relSub")
+                if (resolved.exists() && resolved.length() > 0L) return resolved
+            }
+        }
+        val defaultPath = File(context.filesDir, "pdf_imports/$notebookId/document.pdf")
+        if (defaultPath.exists() && defaultPath.length() > 0L) return defaultPath
+        val folder = File(context.filesDir, "pdf_imports/$notebookId")
+        if (folder.exists()) {
+            val candidate = folder.listFiles { f: File -> f.extension.equals("pdf", ignoreCase = true) }?.firstOrNull()
+            if (candidate != null && candidate.length() > 0L) return candidate
+        }
+        return null
     }
 }

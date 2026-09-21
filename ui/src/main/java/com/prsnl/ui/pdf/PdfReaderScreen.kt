@@ -56,6 +56,34 @@ fun PdfReaderScreen(
     var isFingerDrawingEnabled by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
 
+    // Launcher to re-link or attach missing PDF binary on device
+    val pdfPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        if (uri != null && pages.isNotEmpty()) {
+            val notebookId = pages.first().notebookId
+            val storageDir = File(context.filesDir, "pdf_imports/$notebookId")
+            if (!storageDir.exists()) storageDir.mkdirs()
+            val targetPdf = File(storageDir, "document.pdf")
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    java.io.FileOutputStream(targetPdf).use { output ->
+                        input.copyTo(output)
+                        output.flush()
+                    }
+                }
+                if (targetPdf.exists() && targetPdf.length() > 0L) {
+                    viewModel.relinkPdfSource(targetPdf)
+                    Toast.makeText(context, "PDF successfully linked! Notes restored.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Failed to read selected PDF file.", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error linking PDF: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     // Resolve or synthesize valid document.pdf from files/legacy pngs
     val pdfFile = remember(pages) {
         resolvePdfDocumentFile(context, pages)
@@ -190,21 +218,56 @@ fun PdfReaderScreen(
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(24.dp)
+                                modifier = Modifier
+                                    .padding(24.dp)
+                                    .background(Color(0xFF242220), RoundedCornerShape(16.dp))
+                                    .border(1.dp, Color(0xFFC88A4B).copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                                    .padding(28.dp)
                             ) {
+                                Icon(
+                                    imageVector = Icons.Default.PictureAsPdf,
+                                    contentDescription = null,
+                                    tint = Color(0xFFC88A4B),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "PDF file could not be loaded",
+                                    text = "PDF File Not Found On Device",
                                     color = Color(0xFFFAF8F5),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Please re-import the document or select another notebook.",
-                                    color = Color.White.copy(alpha = 0.6f),
+                                    text = "The local PDF file is missing (e.g. after a fresh install). Your vector notes and annotations are safe! Re-link the PDF document to restore viewing instantly.",
+                                    color = Color.White.copy(alpha = 0.7f),
                                     fontSize = 13.sp,
                                     textAlign = TextAlign.Center
                                 )
+                                Spacer(modifier = Modifier.height(20.dp))
+                                Button(
+                                    onClick = {
+                                        pdfPickerLauncher.launch("application/pdf")
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFC88A4B),
+                                        contentColor = Color(0xFFFAF8F5)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FileOpen,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Select & Re-link PDF",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
                         }
 
@@ -393,50 +456,87 @@ private fun PdfPenTrayToolbar(
  */
 private fun resolvePdfDocumentFile(context: Context, pages: List<Page>): File? {
     if (pages.isEmpty()) return null
-    val firstRef = pages.firstOrNull()?.background?.pdfSourceRef ?: return null
-    val target = File(firstRef)
-    if (target.exists() && target.extension.equals("pdf", ignoreCase = true) && target.length() > 0) {
-        return target
-    }
+    val firstRef = pages.firstOrNull()?.background?.pdfSourceRef
+    val notebookId = pages.firstOrNull()?.notebookId
 
-    val parentDir = if (target.isDirectory) target else target.parentFile ?: return null
-    val docPdf = File(parentDir, "document.pdf")
-    if (docPdf.exists() && docPdf.length() > 0) {
-        return docPdf
-    }
-
-    // Check if there are PNG pages in parentDir (from older imports)
-    val pngFiles = parentDir.listFiles { f -> f.extension.equals("png", ignoreCase = true) }
-        ?.sortedBy { f ->
-            val num = f.nameWithoutExtension.filter { it.isDigit() }.toIntOrNull() ?: 0
-            num
+    if (!firstRef.isNullOrBlank()) {
+        val target = File(firstRef)
+        if (target.exists() && target.extension.equals("pdf", ignoreCase = true) && target.length() > 0) {
+            return target
         }
 
-    if (!pngFiles.isNullOrEmpty()) {
-        try {
-            val pdfDoc = android.graphics.pdf.PdfDocument()
-            for ((index, pngFile) in pngFiles.withIndex()) {
-                val bitmap = android.graphics.BitmapFactory.decodeFile(pngFile.absolutePath)
-                if (bitmap != null) {
-                    val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, index + 1).create()
-                    val pdfPage = pdfDoc.startPage(pageInfo)
-                    pdfPage.canvas.drawBitmap(bitmap, 0f, 0f, null)
-                    pdfDoc.finishPage(pdfPage)
-                    bitmap.recycle()
-                }
+        val relTarget = File(context.filesDir, firstRef)
+        if (relTarget.exists() && relTarget.extension.equals("pdf", ignoreCase = true) && relTarget.length() > 0) {
+            return relTarget
+        }
+
+        if (firstRef.contains("pdf_imports/")) {
+            val relSub = firstRef.substringAfter("pdf_imports/")
+            val resolvedInFiles = File(context.filesDir, "pdf_imports/$relSub")
+            if (resolvedInFiles.exists() && resolvedInFiles.length() > 0) {
+                return resolvedInFiles
             }
-            java.io.FileOutputStream(docPdf).use { out ->
-                pdfDoc.writeTo(out)
-                out.flush()
-            }
-            pdfDoc.close()
+        }
+
+        val parentDir = if (target.isDirectory) target else target.parentFile
+        if (parentDir != null && parentDir.exists()) {
+            val docPdf = File(parentDir, "document.pdf")
             if (docPdf.exists() && docPdf.length() > 0) {
                 return docPdf
             }
-        } catch (e: Exception) {
-            android.util.Log.e("PdfReaderScreen", "Failed to synthesize document.pdf from legacy pngs", e)
+            val anyPdf = parentDir.listFiles { f -> f.extension.equals("pdf", ignoreCase = true) }?.firstOrNull()
+            if (anyPdf != null && anyPdf.length() > 0) {
+                return anyPdf
+            }
+
+            // Check if there are PNG pages in parentDir (from older legacy imports)
+            val pngFiles = parentDir.listFiles { f -> f.extension.equals("png", ignoreCase = true) }
+                ?.sortedBy { f ->
+                    val num = f.nameWithoutExtension.filter { it.isDigit() }.toIntOrNull() ?: 0
+                    num
+                }
+
+            if (!pngFiles.isNullOrEmpty()) {
+                try {
+                    val pdfDoc = android.graphics.pdf.PdfDocument()
+                    for ((index, pngFile) in pngFiles.withIndex()) {
+                        val bitmap = android.graphics.BitmapFactory.decodeFile(pngFile.absolutePath)
+                        if (bitmap != null) {
+                            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, index + 1).create()
+                            val pdfPage = pdfDoc.startPage(pageInfo)
+                            pdfPage.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                            pdfDoc.finishPage(pdfPage)
+                            bitmap.recycle()
+                        }
+                    }
+                    java.io.FileOutputStream(docPdf).use { out ->
+                        pdfDoc.writeTo(out)
+                        out.flush()
+                    }
+                    pdfDoc.close()
+                    if (docPdf.exists() && docPdf.length() > 0) {
+                        return docPdf
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("PdfReaderScreen", "Failed to synthesize document.pdf from legacy pngs", e)
+                }
+            }
         }
     }
 
-    return if (target.exists()) target else null
+    if (!notebookId.isNullOrBlank()) {
+        val standardDoc = File(context.filesDir, "pdf_imports/$notebookId/document.pdf")
+        if (standardDoc.exists() && standardDoc.length() > 0) {
+            return standardDoc
+        }
+        val nbFolder = File(context.filesDir, "pdf_imports/$notebookId")
+        if (nbFolder.exists()) {
+            val anyPdf = nbFolder.listFiles { f -> f.extension.equals("pdf", ignoreCase = true) }?.firstOrNull()
+            if (anyPdf != null && anyPdf.length() > 0) {
+                return anyPdf
+            }
+        }
+    }
+
+    return null
 }

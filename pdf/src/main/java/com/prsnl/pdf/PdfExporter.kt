@@ -1,11 +1,14 @@
 package com.prsnl.pdf
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
 import com.prsnl.document.model.Background
 import com.prsnl.document.model.ImageElement
 import com.prsnl.document.model.Page
@@ -17,9 +20,35 @@ import java.io.FileOutputStream
 
 class PdfExporter {
 
+    private class OpenPdfSource(val pfd: ParcelFileDescriptor, val renderer: PdfRenderer) : AutoCloseable {
+        override fun close() {
+            try {
+                renderer.close()
+            } catch (_: Throwable) {}
+            try {
+                pfd.close()
+            } catch (_: Throwable) {}
+        }
+    }
+
+    private fun renderSourcePdfPage(renderer: PdfRenderer, pageIndex: Int, width: Int, height: Int): Bitmap? {
+        if (pageIndex !in 0 until renderer.pageCount) return null
+        return try {
+            val page = renderer.openPage(pageIndex)
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(Color.WHITE)
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
+            page.close()
+            bitmap
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     fun exportPagesToPdf(pages: List<Page>, outputFile: File): Boolean {
         if (pages.isEmpty()) return false
 
+        val openPdfSources = mutableMapOf<String, OpenPdfSource>()
         return try {
             val pdfDocument = PdfDocument()
 
@@ -63,7 +92,18 @@ class PdfExporter {
                 val canvas = pdfPage.canvas
 
                 // 1. Draw Background
-                drawBackground(canvas, page.background, pageWidth.toFloat(), pageHeight.toFloat(), index, linePaint, marginPaint, textPaint)
+                drawBackground(
+                    canvas = canvas,
+                    bg = page.background,
+                    w = pageWidth.toFloat(),
+                    h = pageHeight.toFloat(),
+                    sourcePageIndex = page.index,
+                    displayPageIndex = index,
+                    linePaint = linePaint,
+                    marginPaint = marginPaint,
+                    textPaint = textPaint,
+                    openPdfSources = openPdfSources
+                )
 
                 // 2. Draw All Page Elements
                 for (element in page.elements) {
@@ -89,6 +129,8 @@ class PdfExporter {
                 return writeJvmTestPdfStub(outputFile)
             }
             false
+        } finally {
+            openPdfSources.values.forEach { it.close() }
         }
     }
 
@@ -102,19 +144,40 @@ class PdfExporter {
     }
 
     private fun drawBackground(
-        canvas: Canvas, bg: Background, w: Float, h: Float, pageIndex: Int,
-        linePaint: Paint, marginPaint: Paint, textPaint: Paint
+        canvas: Canvas, bg: Background, w: Float, h: Float,
+        sourcePageIndex: Int, displayPageIndex: Int,
+        linePaint: Paint, marginPaint: Paint, textPaint: Paint,
+        openPdfSources: MutableMap<String, OpenPdfSource>
     ) {
         val pdfRef = bg.pdfSourceRef
         if (bg.type == Background.Type.PDF && !pdfRef.isNullOrBlank()) {
             val bgFile = File(pdfRef)
             if (bgFile.exists()) {
-                val bitmap = BitmapFactory.decodeFile(bgFile.absolutePath)
-                if (bitmap != null) {
-                    canvas.drawBitmap(bitmap, null, RectF(0f, 0f, w, h), null)
+                if (bgFile.extension.equals("pdf", ignoreCase = true)) {
+                    val openSource = try {
+                        openPdfSources.getOrPut(bgFile.absolutePath) {
+                            val pfd = ParcelFileDescriptor.open(bgFile, ParcelFileDescriptor.MODE_READ_ONLY)
+                            OpenPdfSource(pfd, PdfRenderer(pfd))
+                        }
+                    } catch (_: Throwable) {
+                        null
+                    }
+                    if (openSource != null) {
+                        val bitmap = renderSourcePdfPage(openSource.renderer, sourcePageIndex, w.toInt(), h.toInt())
+                        if (bitmap != null) {
+                            canvas.drawBitmap(bitmap, null, RectF(0f, 0f, w, h), null)
+                            bitmap.recycle()
+                        }
+                    }
+                } else {
+                    val bitmap = BitmapFactory.decodeFile(bgFile.absolutePath)
+                    if (bitmap != null) {
+                        canvas.drawBitmap(bitmap, null, RectF(0f, 0f, w, h), null)
+                        bitmap.recycle()
+                    }
                 }
             }
-            drawPageNumberFooter(canvas, w, h, pageIndex, textPaint)
+            drawPageNumberFooter(canvas, w, h, displayPageIndex, textPaint)
             return
         }
 
@@ -225,7 +288,7 @@ class PdfExporter {
             Background.Type.PDF -> Unit
         }
 
-        drawPageNumberFooter(canvas, w, h, pageIndex, textPaint)
+        drawPageNumberFooter(canvas, w, h, displayPageIndex, textPaint)
     }
 
     private fun drawPageNumberFooter(canvas: Canvas, w: Float, h: Float, pageIndex: Int, textPaint: Paint) {
