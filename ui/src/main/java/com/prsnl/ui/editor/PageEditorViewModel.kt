@@ -9,6 +9,10 @@ import com.prsnl.document.model.Page
 import com.prsnl.document.repository.NotebookRepository
 import com.prsnl.drawing.command.UndoRedoManager
 import com.prsnl.drawing.view.CanvasToolMode
+import com.prsnl.document.model.Stroke
+import com.prsnl.document.model.StrokePoint
+import com.prsnl.storage.repository.StatsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +26,8 @@ import java.util.UUID
 @OptIn(FlowPreview::class)
 class PageEditorViewModel(
     private val repository: NotebookRepository,
-    private val initialPageId: String
+    private val initialPageId: String,
+    private val statsRepository: StatsRepository? = null
 ) : ViewModel() {
 
     private val _pagesList = MutableStateFlow<List<Page>>(emptyList())
@@ -45,6 +50,15 @@ class PageEditorViewModel(
 
     private val _toolMode = MutableStateFlow(CanvasToolMode.PEN)
     val toolMode: StateFlow<CanvasToolMode> = _toolMode.asStateFlow()
+
+    private val _penWidth = MutableStateFlow(3f)
+    val penWidth: StateFlow<Float> = _penWidth.asStateFlow()
+
+    private val _pencilWidth = MutableStateFlow(2f)
+    val pencilWidth: StateFlow<Float> = _pencilWidth.asStateFlow()
+
+    private val _highlighterWidth = MutableStateFlow(18f)
+    val highlighterWidth: StateFlow<Float> = _highlighterWidth.asStateFlow()
 
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
@@ -180,6 +194,47 @@ class PageEditorViewModel(
         setActivePageIndex(pageIndex)
         updateUndoRedoStates()
         triggerAutosave()
+
+        recordCommandStats(page.notebookId, command)
+    }
+
+    private fun recordCommandStats(notebookId: String, command: Command) {
+        val repo = statsRepository ?: return
+        val folderName = _activeNotebook.value?.folderName ?: "General"
+        viewModelScope.launch(Dispatchers.IO) {
+            val strokeLength = extractTotalStrokeLength(command)
+            if (strokeLength > 0f) {
+                repo.recordStroke(notebookId, folderName, strokeLength)
+            }
+        }
+    }
+
+    private fun extractTotalStrokeLength(command: Command): Float {
+        return when (command) {
+            is Command.AddElement -> {
+                val elem = command.element
+                if (elem is Stroke) {
+                    calculateStrokeLength(elem.points)
+                } else {
+                    0f
+                }
+            }
+            is Command.CompoundCommand -> {
+                command.commands.sumOf { extractTotalStrokeLength(it).toDouble() }.toFloat()
+            }
+            else -> 0f
+        }
+    }
+
+    private fun calculateStrokeLength(points: List<StrokePoint>): Float {
+        if (points.size < 2) return 0f
+        var total = 0f
+        for (i in 1 until points.size) {
+            val dx = points[i].x - points[i - 1].x
+            val dy = points[i].y - points[i - 1].y
+            total += kotlin.math.hypot(dx, dy)
+        }
+        return total
     }
 
     fun undo() {
@@ -218,6 +273,24 @@ class PageEditorViewModel(
 
     fun setToolMode(mode: CanvasToolMode) {
         _toolMode.value = mode
+    }
+
+    fun setWidthForTool(mode: CanvasToolMode, width: Float) {
+        when (mode) {
+            CanvasToolMode.PEN -> _penWidth.value = width.coerceIn(1f, 12f)
+            CanvasToolMode.PENCIL -> _pencilWidth.value = width.coerceIn(1f, 10f)
+            CanvasToolMode.HIGHLIGHTER -> _highlighterWidth.value = width.coerceIn(8f, 40f)
+            else -> {}
+        }
+    }
+
+    fun getWidthForTool(mode: CanvasToolMode): Float {
+        return when (mode) {
+            CanvasToolMode.PEN -> _penWidth.value
+            CanvasToolMode.PENCIL -> _pencilWidth.value
+            CanvasToolMode.HIGHLIGHTER -> _highlighterWidth.value
+            else -> _penWidth.value
+        }
     }
 
     fun setActivePageIndex(index: Int) {

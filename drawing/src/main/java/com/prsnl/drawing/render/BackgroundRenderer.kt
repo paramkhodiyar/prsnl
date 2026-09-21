@@ -34,11 +34,6 @@ class BackgroundRenderer {
         color = 0xFF71717A.toInt()
     }
 
-    private val pdfBitmapCache = object : android.util.LruCache<String, android.graphics.Bitmap>(32 * 1024) {
-        override fun sizeOf(key: String, value: android.graphics.Bitmap): Int {
-            return value.byteCount / 1024
-        }
-    }
 
     fun renderBackground(
         canvas: Canvas,
@@ -78,33 +73,7 @@ class BackgroundRenderer {
                 // Plain paper
             }
             Background.Type.PDF -> {
-                val pdfRef = background.pdfSourceRef
-                if (!pdfRef.isNullOrBlank()) {
-                    var bitmap = pdfBitmapCache.get(pdfRef)
-                    if (bitmap == null || bitmap.isRecycled) {
-                        val bgFile = File(pdfRef)
-                        if (bgFile.exists()) {
-                            try {
-                                bitmap = decodePdfPageBitmap(bgFile.absolutePath, width, height)
-                                if (bitmap != null) {
-                                    pdfBitmapCache.put(pdfRef, bitmap)
-                                }
-                            } catch (e: Exception) {
-                                android.util.Log.e("BackgroundRenderer", "Error decoding PDF bitmap at $pdfRef", e)
-                            }
-                        } else {
-                            android.util.Log.e("BackgroundRenderer", "PDF background file missing: $pdfRef")
-                        }
-                    }
-                    if (bitmap != null && !bitmap.isRecycled) {
-                        canvas.drawBitmap(bitmap, null, RectF(0f, 0f, width, height), null)
-                    } else {
-                        drawPdfUnavailable(canvas, width, height)
-                    }
-                } else {
-                    android.util.Log.e("BackgroundRenderer", "PDF background missing pdfSourceRef")
-                    drawPdfUnavailable(canvas, width, height)
-                }
+                // Transparent: PDF page is rendered natively by the underlying PDFView
             }
             Background.Type.RULED -> {
                 var y = spacing + 40f
@@ -202,40 +171,5 @@ class BackgroundRenderer {
         // Page Number Footer
         val pageNumText = "Page ${pageIndex + 1}"
         canvas.drawText(pageNumText, width - 140f, height - 40f, textPaint)
-    }
-
-    private fun decodePdfPageBitmap(path: String, targetWidth: Float, targetHeight: Float): android.graphics.Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-        val maxDecodeWidth = targetWidth.coerceAtLeast(1f)
-        val maxDecodeHeight = targetHeight.coerceAtLeast(1f)
-        var sampleSize = 1
-        while (
-            bounds.outWidth / sampleSize > maxDecodeWidth * 1.5f ||
-            bounds.outHeight / sampleSize > maxDecodeHeight * 1.5f
-        ) {
-            sampleSize *= 2
-        }
-
-        return BitmapFactory.decodeFile(
-            path,
-            BitmapFactory.Options().apply {
-                inSampleSize = sampleSize
-                inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
-            }
-        )
-    }
-
-    private fun drawPdfUnavailable(canvas: Canvas, width: Float, height: Float) {
-        canvas.drawColor(0xFFFAF8F5.toInt())
-        val cardPaint = Paint().apply {
-            color = 0xFF475569.toInt()
-            textSize = 24f
-            isAntiAlias = true
-            textAlign = Paint.Align.CENTER
-        }
-        canvas.drawText("PDF Page Markup Canvas", width / 2f, height / 2f, cardPaint)
     }
 }

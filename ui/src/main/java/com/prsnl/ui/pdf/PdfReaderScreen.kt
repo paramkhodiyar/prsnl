@@ -34,21 +34,11 @@ import com.prsnl.ui.editor.PageEditorViewModel
 import java.io.File
 import java.util.UUID
 
-val HIGHLIGHTER_COLORS = listOf(
-    0x88FFEB3B.toInt(), // Yellow
-    0x888BC34A.toInt(), // Light Green
-    0x88FF4081.toInt(), // Soft Pink
-    0x8800BCD4.toInt(), // Cyan
-    0x88FF9800.toInt()  // Orange
-)
+import com.prsnl.ui.common.BrushPalettes
+import com.prsnl.ui.editor.ToolIcon
 
-val PEN_COLORS = listOf(
-    0xFF000000.toInt(), // Black
-    0xFF1D4ED8.toInt(), // Royal Blue
-    0xFFDC2626.toInt(), // Red
-    0xFF15803D.toInt(), // Dark Green
-    0xFF6B21A8.toInt()  // Purple
-)
+val HIGHLIGHTER_COLORS = BrushPalettes.HIGHLIGHTER_COLORS
+val PEN_COLORS = BrushPalettes.PEN_COLORS
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,118 +139,99 @@ fun PdfReaderScreen(
                         CircularProgressIndicator(color = Color(0xFF38BDF8))
                     }
                 } else {
-                    LazyColumn(
-                        state = listState,
+                    val pdfPath = pages.firstOrNull()?.background?.pdfSourceRef
+                    val pdfFile = remember(pdfPath) { if (!pdfPath.isNullOrBlank()) File(pdfPath) else null }
+                    val activePage = pages.getOrNull(activeIndex) ?: pages.firstOrNull()
+
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(bottom = 100.dp),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(bottom = 90.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        itemsIndexed(pages, key = { _, p -> p.id }) { index, page ->
-                            PdfPageCard(
-                                page = page,
-                                index = index,
-                                toolMode = currentTool,
-                                currentColor = selectedColor,
-                                currentWidth = selectedWidth,
-                                isFingerDrawingEnabled = isFingerDrawingEnabled,
-                                onCommandIssued = { cmd ->
-                                    viewModel.executeCommand(index, cmd)
-                                }
+                        if (pdfFile != null && pdfFile.exists()) {
+                            // Base PDF rendering layer via AndroidPdfViewer (Pdfium)
+                            AndroidView(
+                                factory = { ctx ->
+                                    com.github.barteksc.pdfviewer.PDFView(ctx, null).apply {
+                                        fromFile(pdfFile)
+                                            .defaultPage(activeIndex.coerceIn(0, (pages.size - 1).coerceAtLeast(0)))
+                                            .onPageChange { page, _ ->
+                                                viewModel.setActivePageIndex(page)
+                                            }
+                                            .enableSwipe(currentTool == CanvasToolMode.SELECT)
+                                            .swipeHorizontal(false)
+                                            .enableDoubletap(true)
+                                            .scrollHandle(com.github.barteksc.pdfviewer.scroll.DefaultScrollHandle(ctx))
+                                            .load()
+                                    }
+                                },
+                                update = { pdfView ->
+                                    pdfView.setSwipeEnabled(currentTool == CanvasToolMode.SELECT)
+                                    if (pdfView.currentPage != activeIndex && activeIndex in 0 until pdfView.pageCount) {
+                                        pdfView.jumpTo(activeIndex)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+
+                        // Transparent ink & annotation canvas layer positioned over the PDF page
+                        if (activePage != null) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    DrawingCanvasView(ctx).apply {
+                                        this.pageIndex = activeIndex
+                                        this.documentWidth = activePage.width
+                                        this.documentHeight = activePage.height
+                                        this.currentBackground = activePage.background
+                                        this.currentToolMode = currentTool
+                                        this.currentColor = selectedColor
+                                        this.currentBaseWidth = selectedWidth
+                                        this.isFingerDrawingEnabled = isFingerDrawingEnabled
+                                        this.committedElements = activePage.elements
+                                        this.onCommandIssued = { cmd ->
+                                            viewModel.executeCommand(activeIndex, cmd)
+                                        }
+                                    }
+                                },
+                                update = { view ->
+                                    view.pageIndex = activeIndex
+                                    view.documentWidth = activePage.width
+                                    view.documentHeight = activePage.height
+                                    view.currentBackground = activePage.background
+                                    view.currentToolMode = currentTool
+                                    view.currentColor = selectedColor
+                                    view.currentBaseWidth = selectedWidth
+                                    view.isFingerDrawingEnabled = isFingerDrawingEnabled
+                                    view.committedElements = activePage.elements
+                                    view.onCommandIssued = { cmd ->
+                                        viewModel.executeCommand(activeIndex, cmd)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .aspectRatio(activePage.width / activePage.height.coerceAtLeast(1f))
                             )
                         }
                     }
                 }
             }
 
-            // Floating Pen Tray Toolbar for PDF Markup
-            Box(
+            // Floating Quick Annotation Toolbar at bottom
+            PdfPenTrayToolbar(
+                currentToolMode = currentTool,
+                currentColor = selectedColor,
+                canUndo = canUndo,
+                canRedo = canRedo,
+                isFingerDrawingEnabled = isFingerDrawingEnabled,
+                onSelectTool = { tool -> viewModel.setToolMode(tool) },
+                onSelectColor = { color -> selectedColor = color },
+                onUndo = { viewModel.undo() },
+                onRedo = { viewModel.redo() },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 24.dp)
-                    .statusBarsPadding()
-            ) {
-                PdfPenTrayToolbar(
-                    currentToolMode = currentTool,
-                    currentColor = selectedColor,
-                    canUndo = canUndo,
-                    canRedo = canRedo,
-                    isFingerDrawingEnabled = isFingerDrawingEnabled,
-                    onSelectTool = { tool ->
-                        viewModel.setToolMode(tool)
-                        if (tool == CanvasToolMode.HIGHLIGHTER) {
-                            if (selectedColor !in HIGHLIGHTER_COLORS) {
-                                selectedColor = HIGHLIGHTER_COLORS.first()
-                            }
-                        } else if (tool == CanvasToolMode.PEN) {
-                            if (selectedColor in HIGHLIGHTER_COLORS) {
-                                selectedColor = PEN_COLORS.first()
-                            }
-                        }
-                    },
-                    onSelectColor = { color -> selectedColor = color },
-                    onUndo = { viewModel.undo() },
-                    onRedo = { viewModel.redo() }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PdfPageCard(
-    page: Page,
-    index: Int,
-    toolMode: CanvasToolMode,
-    currentColor: Int,
-    currentWidth: Float,
-    isFingerDrawingEnabled: Boolean,
-    onCommandIssued: (Command) -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    DrawingCanvasView(ctx).apply {
-                        this.pageIndex = index
-                        this.documentWidth = page.width
-                        this.documentHeight = page.height
-                        this.currentBackground = page.background
-                        this.currentToolMode = toolMode
-                        this.currentColor = currentColor
-                        this.currentBaseWidth = currentWidth
-                        this.isFingerDrawingEnabled = isFingerDrawingEnabled
-                        this.committedElements = page.elements
-                        this.onCommandIssued = onCommandIssued
-                    }
-                },
-                update = { view ->
-                    view.pageIndex = index
-                    view.documentWidth = page.width
-                    view.documentHeight = page.height
-                    view.currentBackground = page.background
-                    view.currentToolMode = toolMode
-                    view.currentColor = currentColor
-                    view.currentBaseWidth = currentWidth
-                    view.isFingerDrawingEnabled = isFingerDrawingEnabled
-                    view.committedElements = page.elements
-                    view.onCommandIssued = onCommandIssued
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(page.width / page.height)
             )
         }
     }
@@ -276,13 +247,14 @@ private fun PdfPenTrayToolbar(
     onSelectTool: (CanvasToolMode) -> Unit,
     onSelectColor: (Int) -> Unit,
     onUndo: () -> Unit,
-    onRedo: () -> Unit
+    onRedo: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         shape = RoundedCornerShape(28.dp),
         color = Color(0xFF0F172A).copy(alpha = 0.95f),
         tonalElevation = 12.dp,
-        modifier = Modifier
+        modifier = modifier
             .border(1.5.dp, Color(0xFF334155), RoundedCornerShape(28.dp))
             .padding(horizontal = 4.dp)
     ) {
@@ -292,17 +264,16 @@ private fun PdfPenTrayToolbar(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Read / Pan Mode
+            val activeColor = Color(currentColor)
+
+            // Read / Pan Mode
             IconButton(
                 onClick = { onSelectTool(CanvasToolMode.SELECT) },
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(if (currentToolMode == CanvasToolMode.SELECT) Color(0xFF38BDF8) else Color.Transparent)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Build,
-                    contentDescription = "Read/Scroll Mode",
-                    tint = if (currentToolMode == CanvasToolMode.SELECT) Color.Black else Color.White
-                )
+                ToolIcon(tool = CanvasToolMode.SELECT, tintColor = activeColor, size = 18.dp)
             }
 
             // Pen Tool
@@ -312,11 +283,7 @@ private fun PdfPenTrayToolbar(
                     .clip(CircleShape)
                     .background(if (currentToolMode == CanvasToolMode.PEN) Color(0xFF38BDF8) else Color.Transparent)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Pen",
-                    tint = if (currentToolMode == CanvasToolMode.PEN) Color.Black else Color.White
-                )
+                ToolIcon(tool = CanvasToolMode.PEN, tintColor = activeColor, size = 18.dp)
             }
 
             // Highlighter Tool
@@ -326,11 +293,7 @@ private fun PdfPenTrayToolbar(
                     .clip(CircleShape)
                     .background(if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color(0xFFFACC15) else Color.Transparent)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Create,
-                    contentDescription = "Highlighter",
-                    tint = if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color.Black else Color.White
-                )
+                ToolIcon(tool = CanvasToolMode.HIGHLIGHTER, tintColor = activeColor, size = 18.dp)
             }
 
             // Eraser Tool
@@ -340,11 +303,7 @@ private fun PdfPenTrayToolbar(
                     .clip(CircleShape)
                     .background(if (currentToolMode == CanvasToolMode.STROKE_ERASER) Color(0xFFEF4444) else Color.Transparent)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Eraser",
-                    tint = if (currentToolMode == CanvasToolMode.STROKE_ERASER) Color.White else Color.White
-                )
+                ToolIcon(tool = CanvasToolMode.STROKE_ERASER, tintColor = activeColor, size = 18.dp)
             }
 
             // Lasso Tool
@@ -354,11 +313,7 @@ private fun PdfPenTrayToolbar(
                     .clip(CircleShape)
                     .background(if (currentToolMode == CanvasToolMode.LASSO) Color(0xFF818CF8) else Color.Transparent)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Done,
-                    contentDescription = "Lasso Selection",
-                    tint = if (currentToolMode == CanvasToolMode.LASSO) Color.White else Color.White
-                )
+                ToolIcon(tool = CanvasToolMode.LASSO, tintColor = activeColor, size = 18.dp)
             }
 
             HorizontalDivider(

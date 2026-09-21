@@ -22,6 +22,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var folderRepository: FolderRepository
 
+    @Inject
+    lateinit var statsRepository: com.prsnl.storage.repository.StatsRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -40,7 +43,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     PrsnlAppNavHost(
                         notebookRepository = notebookRepository,
-                        folderRepository = folderRepository
+                        folderRepository = folderRepository,
+                        statsRepository = statsRepository
                     )
                 }
             }

@@ -36,7 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Create
-
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -94,6 +94,7 @@ fun HomeScreen(
     onNotebookClick: (String) -> Unit = {},
     onNavigateToPaywall: () -> Unit = {},
     onNavigateToAuth: () -> Unit = {},
+    onNavigateToStats: () -> Unit = {},
     onTriggerSync: () -> Unit = {}
 ) {
     val notebooks by viewModel.notebooks.collectAsState()
@@ -231,6 +232,13 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.CloudSync,
                                     contentDescription = "Cloud Sync & Account",
+                                    tint = Color(0xFFC88A4B)
+                                )
+                            }
+                            IconButton(onClick = { onNavigateToStats() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Insights,
+                                    contentDescription = "Writing Insights & Wrapped",
                                     tint = Color(0xFFC88A4B)
                                 )
                             }

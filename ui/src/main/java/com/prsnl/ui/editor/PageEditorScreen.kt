@@ -99,7 +99,10 @@ fun PageEditorScreen(
     val context = LocalContext.current
 
     var selectedColor by remember { mutableIntStateOf(AndroidColor.parseColor("#2D2B28")) }
-    var selectedWidth by remember { mutableFloatStateOf(6f) }
+    var selectedWidth by remember { mutableFloatStateOf(viewModel.getWidthForTool(toolMode)) }
+    LaunchedEffect(toolMode) {
+        selectedWidth = viewModel.getWidthForTool(toolMode)
+    }
     var eraserRadius by remember { mutableFloatStateOf(32f) }
     var selectedShapeType by remember { mutableStateOf(Shape.Type.RECTANGLE) }
     var isFingerDrawingEnabled by remember { mutableStateOf(false) }
@@ -183,79 +186,107 @@ fun PageEditorScreen(
             modifier = Modifier.statusBarsPadding(),
             containerColor = Color.Transparent,
             topBar = {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "$notebookTitle • Page ${activePageIndex + 1} of ${pagesList.size}",
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF2D2B28),
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            if (isSaving) {
+                Column {
+                    TopAppBar(
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "  (Saving...)",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFFC88A4B)
+                                    text = "$notebookTitle • Page ${activePageIndex + 1} of ${pagesList.size}",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2D2B28),
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
-                            }
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF2D2B28))
-                        }
-                    },
-                    actions = {
-                        var crashLogText by remember { mutableStateOf(com.prsnl.core.log.CrashLogger.getLatestCrashLog(context)) }
-                        var showCrashLogModal by remember { mutableStateOf(false) }
-
-                        // Export PDF Action
-                        IconButton(
-                            onClick = {
-                                if (pagesList.isNotEmpty()) {
-                                    exportFilename = defaultPdfFilename(notebookTitle)
-                                    showExportDialog = true
+                                if (isSaving) {
+                                    Text(
+                                        "  (Saving...)",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFC88A4B)
+                                    )
                                 }
                             }
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = "Export PDF", tint = Color(0xFF4C6EF5))
-                        }
-
-                        IconButton(
-                            onClick = {
-                                crashLogText = com.prsnl.core.log.CrashLogger.getLatestCrashLog(context) ?: "No crashes recorded. System running cleanly!"
-                                showCrashLogModal = true
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF2D2B28))
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = "View Crash Logs",
-                                tint = if (crashLogText != null) Color(0xFFDC2626) else Color(0xFFC88A4B)
-                            )
-                        }
+                        },
+                        actions = {
+                            var crashLogText by remember { mutableStateOf(com.prsnl.core.log.CrashLogger.getLatestCrashLog(context)) }
+                            var showCrashLogModal by remember { mutableStateOf(false) }
 
-                        if (showCrashLogModal && crashLogText != null) {
-                            com.prsnl.ui.common.CrashLogViewerModal(
-                                crashLogText = crashLogText!!,
-                                onDismiss = { showCrashLogModal = false }
-                            )
-                        }
+                            // Export PDF Action
+                            IconButton(
+                                onClick = {
+                                    if (pagesList.isNotEmpty()) {
+                                        exportFilename = defaultPdfFilename(notebookTitle)
+                                        showExportDialog = true
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = "Export PDF", tint = Color(0xFF4C6EF5))
+                            }
 
-                        IconButton(onClick = { showSettingsModal = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Notebook Settings", tint = Color(0xFFC88A4B))
-                        }
-                        TextButton(onClick = { viewModel.undo() }, enabled = canUndo) {
-                            Text("Undo", color = if (canUndo) Color(0xFFC88A4B) else Color(0xFF8E887E))
-                        }
-                        TextButton(onClick = { viewModel.redo() }, enabled = canRedo) {
-                            Text("Redo", color = if (canRedo) Color(0xFFC88A4B) else Color(0xFF8E887E))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFFBF9F4))
-                )
+                            IconButton(
+                                onClick = {
+                                    crashLogText = com.prsnl.core.log.CrashLogger.getLatestCrashLog(context) ?: "No crashes recorded. System running cleanly!"
+                                    showCrashLogModal = true
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = "View Crash Logs",
+                                    tint = if (crashLogText != null) Color(0xFFDC2626) else Color(0xFFC88A4B)
+                                )
+                            }
+
+                            if (showCrashLogModal && crashLogText != null) {
+                                com.prsnl.ui.common.CrashLogViewerModal(
+                                    crashLogText = crashLogText!!,
+                                    onDismiss = { showCrashLogModal = false }
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFFBF9F4))
+                    )
+
+                    FixedTopToolbar(
+                        toolMode = toolMode,
+                        onToolModeChange = { newMode ->
+                            viewModel.setToolMode(newMode)
+                            selectedWidth = viewModel.getWidthForTool(newMode)
+                            if (newMode == CanvasToolMode.HIGHLIGHTER && !com.prsnl.ui.common.BrushPalettes.isColorInPalette(selectedColor, newMode)) {
+                                selectedColor = com.prsnl.ui.common.BrushPalettes.getDefaultColorForTool(newMode)
+                            }
+                        },
+                        selectedColor = selectedColor,
+                        onColorSelect = { selectedColor = it },
+                        selectedWidth = selectedWidth,
+                        onWidthChange = {
+                            selectedWidth = it
+                            viewModel.setWidthForTool(toolMode, it)
+                        },
+                        eraserRadius = eraserRadius,
+                        onEraserRadiusChange = { eraserRadius = it },
+                        selectedShapeType = selectedShapeType,
+                        onShapeTypeSelect = { selectedShapeType = it },
+                        isPressureSensitivityEnabled = isPressureSensitivityEnabled,
+                        onPressureSensitivityToggle = { isPressureSensitivityEnabled = !isPressureSensitivityEnabled },
+                        hasSelection = hasCanvasSelection,
+                        onDeleteSelection = {
+                            val activeView = canvasViews[activePageIndex]
+                            activeView?.deleteSelectedElements()
+                        },
+                        onOpenColorWheel = { showColorWheel = true },
+                        onOpenSettings = { showSettingsModal = true },
+                        onInsertImage = { imagePickerLauncher.launch("image/*") },
+                        canUndo = canUndo,
+                        canRedo = canRedo,
+                        onUndo = { viewModel.undo() },
+                        onRedo = { viewModel.redo() }
+                    )
+                }
             },
             floatingActionButton = {
                 FloatingActionButton(
@@ -397,30 +428,24 @@ fun PageEditorScreen(
                     }
                 }
 
-                // Bottom Floating Control Bar
-                FloatingWritingToolbar(
+                // Floating Quick Switch Pill
+                QuickSwitchPill(
                     toolMode = toolMode,
-                    onToolModeChange = { viewModel.setToolMode(it) },
-                    selectedColor = selectedColor,
-                    onColorSelect = { selectedColor = it },
-                    selectedWidth = selectedWidth,
-                    onWidthChange = { selectedWidth = it },
-                    eraserRadius = eraserRadius,
-                    onEraserRadiusChange = { eraserRadius = it },
-                    selectedShapeType = selectedShapeType,
-                    onShapeTypeSelect = { selectedShapeType = it },
-                    isFingerDrawingEnabled = isFingerDrawingEnabled,
-                    onFingerDrawingToggle = { isFingerDrawingEnabled = !isFingerDrawingEnabled },
-                    isPressureSensitivityEnabled = isPressureSensitivityEnabled,
-                    onPressureSensitivityToggle = { isPressureSensitivityEnabled = !isPressureSensitivityEnabled },
-                    hasSelection = hasCanvasSelection,
-                    onDeleteSelection = {
-                        val activeView = canvasViews[activePageIndex]
-                        activeView?.deleteSelectedElements()
+                    onToolModeChange = { newMode ->
+                        viewModel.setToolMode(newMode)
+                        selectedWidth = viewModel.getWidthForTool(newMode)
+                        if (newMode == CanvasToolMode.HIGHLIGHTER && !com.prsnl.ui.common.BrushPalettes.isColorInPalette(selectedColor, newMode)) {
+                            selectedColor = com.prsnl.ui.common.BrushPalettes.getDefaultColorForTool(newMode)
+                        }
                     },
-                    onOpenColorWheel = { showColorWheel = true },
-                    onOpenSettings = { showSettingsModal = true },
-                    onInsertImage = { imagePickerLauncher.launch("image/*") }
+                    selectedColor = selectedColor,
+                    canUndo = canUndo,
+                    canRedo = canRedo,
+                    onUndo = { viewModel.undo() },
+                    onRedo = { viewModel.redo() },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 24.dp, end = 20.dp)
                 )
             }
         }

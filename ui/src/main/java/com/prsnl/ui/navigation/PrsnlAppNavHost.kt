@@ -25,7 +25,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun PrsnlAppNavHost(
     notebookRepository: NotebookRepository,
-    folderRepository: FolderRepository
+    folderRepository: FolderRepository,
+    statsRepository: com.prsnl.storage.repository.StatsRepository? = null
 ) {
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
@@ -70,6 +71,9 @@ fun PrsnlAppNavHost(
                 onNavigateToAuth = {
                     navController.navigate("auth")
                 },
+                onNavigateToStats = {
+                    navController.navigate("stats")
+                },
                 onTriggerSync = {
                     authViewModel.triggerSync()
                 }
@@ -81,6 +85,32 @@ fun PrsnlAppNavHost(
             val authViewModel: com.prsnl.ui.auth.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             com.prsnl.ui.auth.AuthScreen(
                 viewModel = authViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // Writing Insights & Stats
+        composable("stats") {
+            val statsViewModel: com.prsnl.ui.stats.WritingStatsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            com.prsnl.ui.stats.WritingStatsScreen(
+                viewModel = statsViewModel,
+                onBackClick = { navController.popBackStack() },
+                onNavigateToWrapped = { year ->
+                    navController.navigate("wrapped/$year")
+                }
+            )
+        }
+
+        // Yearly Notes Wrapped
+        composable(
+            route = "wrapped/{year}",
+            arguments = listOf(navArgument("year") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val year = backStackEntry.arguments?.getString("year") ?: java.time.LocalDate.now().year.toString()
+            val statsViewModel: com.prsnl.ui.stats.WritingStatsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            com.prsnl.ui.stats.YearlyWrappedScreen(
+                viewModel = statsViewModel,
+                year = year,
                 onBackClick = { navController.popBackStack() }
             )
         }
@@ -125,7 +155,7 @@ fun PrsnlAppNavHost(
             arguments = listOf(navArgument("pageId") { type = NavType.StringType })
         ) { backStackEntry ->
             val pageId = backStackEntry.arguments?.getString("pageId") ?: ""
-            val editorViewModel = PageEditorViewModel(notebookRepository, pageId)
+            val editorViewModel = PageEditorViewModel(notebookRepository, pageId, statsRepository)
             PageEditorScreen(
                 viewModel = editorViewModel,
                 onBackClick = { navController.popBackStack() }
@@ -138,7 +168,7 @@ fun PrsnlAppNavHost(
             arguments = listOf(navArgument("pageId") { type = NavType.StringType })
         ) { backStackEntry ->
             val pageId = backStackEntry.arguments?.getString("pageId") ?: ""
-            val editorViewModel = PageEditorViewModel(notebookRepository, pageId)
+            val editorViewModel = PageEditorViewModel(notebookRepository, pageId, statsRepository)
             com.prsnl.ui.pdf.PdfReaderScreen(
                 viewModel = editorViewModel,
                 onBackClick = { navController.popBackStack() }

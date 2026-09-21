@@ -74,8 +74,21 @@ class ShapeRecognizer(
                 }
             }
         } else {
-            // Open stroke candidate: Straight Line or Arrow
-            if (checkStraightLine(points)) {
+            // Open stroke candidate: Straight Line, Arrow, or L-Axis (AXIS_2D)
+            val corners = detectCorners(points)
+            if (corners == 1) {
+                // Single sharp right angle corner (L-shape)
+                return Shape(
+                    id = UUID.randomUUID().toString(),
+                    zIndex = stroke.zIndex,
+                    boundingBox = boundingBox,
+                    createdAt = System.currentTimeMillis(),
+                    type = Shape.Type.AXIS_2D,
+                    strokeColor = stroke.color,
+                    strokeWidth = stroke.baseWidth,
+                    sourceStrokeId = stroke.id
+                )
+            } else if (checkStraightLine(points)) {
                 val isArrow = checkArrowhead(points)
                 return Shape(
                     id = UUID.randomUUID().toString(),

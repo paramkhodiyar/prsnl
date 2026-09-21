@@ -68,7 +68,12 @@ data class Shape(
         DIAMOND,
         AXIS_2D,
         QUADRANT_4,
-        AXIS_3D
+        AXIS_3D,
+        NUMBER_LINE,
+        POLAR_GRID,
+        GRAPH_PAPER_BG,
+        BAR_CHART_TEMPLATE,
+        PIE_CHART_TEMPLATE
     }
 }
 

@@ -29,6 +29,7 @@ class NotebookRepositoryImplTest {
 
             val fakeNotebookDao = object : NotebookDao {
                 override fun getAllNotebooks(): Flow<List<NotebookEntity>> = flowOf(fakeNotebooks.values.toList())
+                override suspend fun getAllNotebooksSync(): List<NotebookEntity> = fakeNotebooks.values.toList()
                 override suspend fun getNotebookById(id: String): NotebookEntity? = fakeNotebooks[id]
                 override suspend fun insertNotebook(notebook: NotebookEntity) { fakeNotebooks[notebook.id] = notebook }
                 override suspend fun updateNotebook(notebook: NotebookEntity) { fakeNotebooks[notebook.id] = notebook }
@@ -43,6 +44,7 @@ class NotebookRepositoryImplTest {
                     flowOf(fakePages.values.filter { it.notebookId == notebookId })
                 override suspend fun getPagesForNotebookSync(notebookId: String): List<PageEntity> =
                     fakePages.values.filter { it.notebookId == notebookId }
+                override suspend fun getAllPagesSync(): List<PageEntity> = fakePages.values.toList()
                 override suspend fun getPageById(id: String): PageEntity? = fakePages[id]
                 override suspend fun insertPage(page: PageEntity) {
                     check(fakeNotebooks.containsKey(page.notebookId)) {

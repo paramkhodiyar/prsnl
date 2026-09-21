@@ -28,3 +28,9 @@
 -keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }
 
+# AndroidPdfViewer & Pdfium
+-keep class com.github.barteksc.pdfviewer.** { *; }
+-keep class com.shockwave.pdfium.** { *; }
+-dontwarn com.github.barteksc.pdfviewer.**
+-dontwarn com.shockwave.pdfium.**
+

@@ -156,6 +156,94 @@ class ShapeRenderer {
                 drawArrowHead(canvas, originX, centerY, bounds.right, centerY, strokePaint)
                 drawArrowHead(canvas, originX, centerY, bounds.left, bounds.bottom, strokePaint)
             }
+            Shape.Type.NUMBER_LINE -> {
+                // Horizontal line with bidirectional arrowheads and evenly spaced tick marks
+                val midY = centerY
+                canvas.drawLine(bounds.left, midY, bounds.right, midY, strokePaint)
+                drawArrowHead(canvas, bounds.right, midY, bounds.left, midY, strokePaint)
+                drawArrowHead(canvas, bounds.left, midY, bounds.right, midY, strokePaint)
+
+                // Draw 7-9 equidistant tick marks
+                val numTicks = 9
+                val step = (bounds.right - bounds.left) / (numTicks + 1)
+                for (i in 1..numTicks) {
+                    val tx = bounds.left + i * step
+                    val isCenter = (i == (numTicks + 1) / 2)
+                    val tickHalfHeight = if (isCenter) 14f else 8f
+                    canvas.drawLine(tx, midY - tickHalfHeight, tx, midY + tickHalfHeight, strokePaint)
+                }
+            }
+            Shape.Type.POLAR_GRID -> {
+                // Concentric circles with cross axes and 45-degree diagonal rays
+                val radius = Math.min(bounds.width, bounds.height) / 2f
+                val rings = 3
+                for (r in 1..rings) {
+                    val ringRadius = radius * (r / rings.toFloat())
+                    canvas.drawCircle(centerX, centerY, ringRadius, strokePaint)
+                }
+                // Horizontal and vertical polar axes
+                canvas.drawLine(centerX - radius, centerY, centerX + radius, centerY, strokePaint)
+                canvas.drawLine(centerX, centerY - radius, centerX, centerY + radius, strokePaint)
+                // 45-degree diagonal guide lines
+                val diagOffset = (radius * 0.7071f)
+                canvas.drawLine(centerX - diagOffset, centerY - diagOffset, centerX + diagOffset, centerY + diagOffset, strokePaint)
+                canvas.drawLine(centerX - diagOffset, centerY + diagOffset, centerX + diagOffset, centerY - diagOffset, strokePaint)
+            }
+            Shape.Type.GRAPH_PAPER_BG -> {
+                // Bounded grid area with 5x5 subgrid
+                canvas.drawRect(bounds.left, bounds.top, bounds.right, bounds.bottom, strokePaint)
+                val gridCols = 5
+                val gridRows = 5
+                val colStep = bounds.width / gridCols.toFloat()
+                val rowStep = bounds.height / gridRows.toFloat()
+                val gridPaint = Paint(strokePaint).apply {
+                    strokeWidth = (strokePaint.strokeWidth * 0.6f).coerceAtLeast(1f)
+                    alpha = (strokePaint.alpha * 0.75f).toInt()
+                }
+                for (c in 1 until gridCols) {
+                    val gx = bounds.left + c * colStep
+                    canvas.drawLine(gx, bounds.top, gx, bounds.bottom, gridPaint)
+                }
+                for (r in 1 until gridRows) {
+                    val gy = bounds.top + r * rowStep
+                    canvas.drawLine(bounds.left, gy, bounds.right, gy, gridPaint)
+                }
+            }
+            Shape.Type.BAR_CHART_TEMPLATE -> {
+                // L-Axis frame
+                canvas.drawLine(bounds.left, bounds.bottom, bounds.left, bounds.top, strokePaint)
+                canvas.drawLine(bounds.left, bounds.bottom, bounds.right, bounds.bottom, strokePaint)
+                drawArrowHead(canvas, bounds.left, bounds.bottom, bounds.left, bounds.top, strokePaint)
+                drawArrowHead(canvas, bounds.left, bounds.bottom, bounds.right, bounds.bottom, strokePaint)
+
+                // 3 Bar templates with dashed/light outlines
+                val barPaint = Paint(strokePaint).apply {
+                    strokeWidth = (strokePaint.strokeWidth * 0.8f).coerceAtLeast(1f)
+                }
+                val availableWidth = bounds.right - bounds.left - 20f
+                val barWidth = availableWidth / 5f
+                val heights = listOf(0.4f, 0.75f, 0.55f)
+                heights.forEachIndexed { idx, hFraction ->
+                    val barLeft = bounds.left + 15f + idx * (barWidth * 1.5f)
+                    val barTop = bounds.bottom - (bounds.height - 30f) * hFraction
+                    canvas.drawRect(barLeft, barTop, barLeft + barWidth, bounds.bottom, barPaint)
+                }
+            }
+            Shape.Type.PIE_CHART_TEMPLATE -> {
+                // Circle with radial pie slices
+                val radius = Math.min(bounds.width, bounds.height) / 2f
+                canvas.drawCircle(centerX, centerY, radius, strokePaint)
+                // Center point
+                canvas.drawCircle(centerX, centerY, 3f, strokePaint)
+                // 4 sector dividers (0 deg, 70 deg, 160 deg, 260 deg)
+                val angles = listOf(0.0, 70.0, 160.0, 260.0)
+                for (angleDeg in angles) {
+                    val rad = Math.toRadians(angleDeg)
+                    val endX = (centerX + radius * Math.cos(rad)).toFloat()
+                    val endY = (centerY + radius * Math.sin(rad)).toFloat()
+                    canvas.drawLine(centerX, centerY, endX, endY, strokePaint)
+                }
+            }
         }
     }
 

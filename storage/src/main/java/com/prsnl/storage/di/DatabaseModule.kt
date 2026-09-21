@@ -43,6 +43,9 @@ object DatabaseModule {
     fun providePageDao(database: PrsnlDatabase): PageDao = database.pageDao()
 
     @Provides
+    fun provideWritingStatDao(database: PrsnlDatabase): com.prsnl.storage.dao.WritingStatDao = database.writingStatDao()
+
+    @Provides
     @Singleton
     fun providePageFileStorage(@ApplicationContext context: Context): PageFileStorage {
         return PageFileStorage(context.filesDir)
@@ -64,5 +67,21 @@ object DatabaseModule {
         folderDao: FolderDao
     ): FolderRepository {
         return FolderRepositoryImpl(folderDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStatsRepository(
+        writingStatDao: com.prsnl.storage.dao.WritingStatDao,
+        notebookDao: NotebookDao,
+        folderDao: FolderDao,
+        pageDao: PageDao
+    ): com.prsnl.storage.repository.StatsRepository {
+        return com.prsnl.storage.repository.StatsRepositoryImpl(
+            writingStatDao,
+            notebookDao,
+            folderDao,
+            pageDao
+        )
     }
 }
