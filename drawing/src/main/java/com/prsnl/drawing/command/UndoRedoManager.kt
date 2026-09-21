@@ -23,19 +23,27 @@ class UndoRedoManager(
     }
 
     fun undo(): Page? {
+        return undoWithCommand()?.first
+    }
+
+    fun undoWithCommand(): Pair<Page, Command>? {
         if (undoStack.isEmpty()) return null
         val command = undoStack.pop()
         currentPage = command.invert(currentPage)
         redoStack.push(command)
-        return currentPage
+        return Pair(currentPage, command)
     }
 
     fun redo(): Page? {
+        return redoWithCommand()?.first
+    }
+
+    fun redoWithCommand(): Pair<Page, Command>? {
         if (redoStack.isEmpty()) return null
         val command = redoStack.pop()
         currentPage = command.apply(currentPage)
         undoStack.push(command)
-        return currentPage
+        return Pair(currentPage, command)
     }
 
     fun updateCurrentPage(page: Page) {

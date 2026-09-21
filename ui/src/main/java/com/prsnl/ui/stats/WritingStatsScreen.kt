@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -57,9 +58,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
@@ -68,7 +67,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.prsnl.core.util.DistanceUtils
 import com.prsnl.storage.repository.DailyBarStat
-import com.prsnl.storage.repository.OverallWritingStats
 import com.prsnl.storage.repository.TopFolderStat
 import com.prsnl.storage.repository.TopNotebookStat
 import java.time.LocalDate
@@ -96,7 +94,7 @@ fun WritingStatsScreen(
                         text = "Writing Insights",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B)
+                        color = Color(0xFF2D2B28)
                     )
                 },
                 navigationIcon = {
@@ -104,14 +102,23 @@ fun WritingStatsScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF1E293B)
+                            tint = Color(0xFF2D2B28)
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color(0xFFF8FAFC))
+                actions = {
+                    IconButton(onClick = { viewModel.recalculateStats() }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Recalculate Stats",
+                            tint = Color(0xFFC88A4B)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color(0xFFFBF9F4))
             )
         },
-        containerColor = Color(0xFFF8FAFC)
+        containerColor = Color(0xFFFBF9F4)
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -120,7 +127,7 @@ fun WritingStatsScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. "Year in Review" Wrapped Entry Card (if user has real activity)
+            // 1. "Year in Review" Wrapped Entry Card (Strict Warm Stationery Theme)
             if (overallStats.totalStrokes > 0) {
                 item {
                     YearInReviewCard(
@@ -131,7 +138,7 @@ fun WritingStatsScreen(
                 }
             }
 
-            // 2. Hero Meters Counter with Landmark comparison
+            // 2. Hero Meters Counter with Landmark comparison (Centered)
             item {
                 HeroMetersCard(
                     meters = overallStats.totalMetersAllTime,
@@ -140,7 +147,7 @@ fun WritingStatsScreen(
                 )
             }
 
-            // 3. Streak & Consistency Pill
+            // 3. Streak & Consistency Card
             item {
                 StreakCard(
                     currentStreak = overallStats.currentStreakDays,
@@ -148,7 +155,7 @@ fun WritingStatsScreen(
                 )
             }
 
-            // 4. Daily Ink Length Bar Chart (Custom Canvas)
+            // 4. Daily Ink Length Bar Chart (Custom Canvas in warm brand colors)
             item {
                 CanvasDailyBarChartCard(dailyBars = dailyBars)
             }
@@ -160,7 +167,7 @@ fun WritingStatsScreen(
                         text = "Most Written Notebooks",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = Color(0xFF1E293B),
+                        color = Color(0xFF2D2B28),
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -176,7 +183,7 @@ fun WritingStatsScreen(
                         text = "Top Writing Folders",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = Color(0xFF1E293B),
+                        color = Color(0xFF2D2B28),
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -194,19 +201,21 @@ fun WritingStatsScreen(
     if (showEstimationInfoDialog) {
         AlertDialog(
             onDismissRequest = { showEstimationInfoDialog = false },
-            title = { Text("How Distance is Estimated", fontWeight = FontWeight.Bold) },
+            title = { Text("How Distance is Estimated", fontWeight = FontWeight.Bold, color = Color(0xFF2D2B28)) },
             text = {
                 Text(
                     "Digital canvas strokes are recorded in document units. To provide a tangible real-world distance, " +
-                    "we scale document width to standard A4 paper dimensions (21.0 cm width). " +
-                    "The meters displayed reflect your physical pen journey across your pages."
+                    "we scale document width to standard A4 physical sheet dimensions (21.0 cm width). " +
+                    "Erased strokes and undo operations subtract from your distance in real time.",
+                    color = Color(0xFF5C5850)
                 )
             },
             confirmButton = {
                 TextButton(onClick = { showEstimationInfoDialog = false }) {
-                    Text("Got it", fontWeight = FontWeight.Bold)
+                    Text("Got it", fontWeight = FontWeight.Bold, color = Color(0xFFC88A4B))
                 }
-            }
+            },
+            containerColor = Color(0xFFFAF8F5)
         )
     }
 }
@@ -219,7 +228,9 @@ private fun YearInReviewCard(
 ) {
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2D2B28)),
+        border = BorderStroke(1.5.dp, Color(0xFFC88A4B)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
@@ -227,11 +238,6 @@ private fun YearInReviewCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFEC4899))
-                    )
-                )
                 .padding(20.dp)
         ) {
             Row(
@@ -244,13 +250,13 @@ private fun YearInReviewCard(
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
-                            tint = Color(0xFFFDE047),
+                            tint = Color(0xFFC88A4B),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "$year YEAR IN REVIEW",
-                            color = Color(0xFFFDE047),
+                            color = Color(0xFFC88A4B),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp
@@ -259,20 +265,20 @@ private fun YearInReviewCard(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "Your Notes Wrapped",
-                        color = Color.White,
+                        color = Color(0xFFFAF8F5),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Tap to view your personalized handwritten journey",
-                        color = Color.White.copy(alpha = 0.85f),
+                        text = "Explore your personalized handwritten journey",
+                        color = Color(0xFFE2D7C5),
                         fontSize = 12.sp
                     )
                 }
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Open Wrapped",
-                    tint = Color.White,
+                    tint = Color(0xFFFAF8F5),
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -295,7 +301,7 @@ private fun HeroMetersCard(
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, Color(0xFFEAE3D2)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -313,7 +319,7 @@ private fun HeroMetersCard(
                     text = "TOTAL DISTANCE WRITTEN",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF64748B),
+                    color = Color(0xFF7A756D),
                     letterSpacing = 1.sp
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -324,7 +330,7 @@ private fun HeroMetersCard(
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = "Estimated info",
-                        tint = Color(0xFF94A3B8),
+                        tint = Color(0xFF8A8275),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -332,34 +338,37 @@ private fun HeroMetersCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Main Big Counter
-            Row(verticalAlignment = Alignment.Bottom) {
+            // Main Big Counter (Centered)
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.Center
+            ) {
                 Text(
                     text = String.format("%.1f", animatedMeters),
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Black,
-                    color = Color(0xFF0F172A)
+                    color = Color(0xFF2D2B28)
                 )
                 Text(
                     text = " meters",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF4C6EF5),
+                    color = Color(0xFFC88A4B),
                     modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
                 )
             }
 
-            // Friendly comparison line
+            // Friendly comparison line (Centered)
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF1F5F9),
+                color = Color(0xFFF4EFE6),
                 modifier = Modifier.padding(top = 10.dp)
             ) {
                 Text(
                     text = DistanceUtils.getLandmarkComparison(meters),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF334155),
+                    color = Color(0xFF2D2B28),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                 )
@@ -367,11 +376,12 @@ private fun HeroMetersCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Secondary stat line
+            // Secondary stat line (Centered)
             Text(
                 text = "${NumberFormatShort(totalStrokes)} strokes committed with your stylus",
                 fontSize = 12.sp,
-                color = Color(0xFF64748B)
+                color = Color(0xFF7A756D),
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -396,7 +406,7 @@ private fun StreakCard(
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, Color(0xFFEAE3D2)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -411,13 +421,13 @@ private fun StreakCard(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFFF7ED)),
+                        .background(Color(0xFFFDF4E7)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.LocalFireDepartment,
                         contentDescription = "Streak flame",
-                        tint = Color(0xFFEA580C),
+                        tint = Color(0xFFE07A2B),
                         modifier = Modifier
                             .size(28.dp)
                             .scale(if (currentStreak > 0) flameScale else 1f)
@@ -429,12 +439,12 @@ private fun StreakCard(
                         text = if (currentStreak > 0) "$currentStreak-Day Streak" else "No active streak",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = Color(0xFF2D2B28)
                     )
                     Text(
-                        text = if (currentStreak > 0) "Keep writing today to keep it burning!" else "Write a stroke today to start your streak!",
+                        text = if (currentStreak > 0) "Keep writing today to maintain momentum!" else "Write a stroke today to start your streak!",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B)
+                        color = Color(0xFF7A756D)
                     )
                 }
             }
@@ -444,13 +454,13 @@ private fun StreakCard(
                     text = "BEST",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
-                    color = Color(0xFF94A3B8)
+                    color = Color(0xFF8A8275)
                 )
                 Text(
                     text = "$longestStreak days",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = Color(0xFF2D2B28)
                 )
             }
         }
@@ -462,7 +472,7 @@ private fun CanvasDailyBarChartCard(dailyBars: List<DailyBarStat>) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, Color(0xFFEAE3D2)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -474,7 +484,7 @@ private fun CanvasDailyBarChartCard(dailyBars: List<DailyBarStat>) {
                 text = "Last 7 Days Activity",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = Color(0xFF2D2B28)
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -496,7 +506,7 @@ private fun CanvasDailyBarChartCard(dailyBars: List<DailyBarStat>) {
 
                 // Draw baseline
                 drawLine(
-                    color = Color(0xFFE2E8F0),
+                    color = Color(0xFFEAE3D2),
                     start = Offset(0f, chartHeight),
                     end = Offset(canvasWidth, chartHeight),
                     strokeWidth = 2f
@@ -509,7 +519,8 @@ private fun CanvasDailyBarChartCard(dailyBars: List<DailyBarStat>) {
                     val barTop = chartHeight - barH
 
                     val isToday = i == dailyBars.size - 1
-                    val barColor = if (isToday) Color(0xFF4C6EF5) else Color(0xFF93C5FD)
+                    // Warm stationery palette: active Amber vs muted sand
+                    val barColor = if (isToday) Color(0xFFC88A4B) else Color(0xFFD4C7B5)
 
                     // Rounded top bar
                     drawRoundRect(
@@ -522,7 +533,7 @@ private fun CanvasDailyBarChartCard(dailyBars: List<DailyBarStat>) {
                     // Draw day-of-week label below baseline
                     drawContext.canvas.nativeCanvas.apply {
                         val paint = android.graphics.Paint().apply {
-                            color = if (isToday) Color(0xFF1E293B).toArgb() else Color(0xFF94A3B8).toArgb()
+                            color = if (isToday) Color(0xFF2D2B28).toArgb() else Color(0xFF8A8275).toArgb()
                             textSize = 11.dp.toPx()
                             textAlign = android.graphics.Paint.Align.CENTER
                             isFakeBoldText = isToday
@@ -545,7 +556,7 @@ private fun TopNotebookItem(rank: Int, item: TopNotebookStat) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, Color(0xFFEAE3D2)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -561,7 +572,7 @@ private fun TopNotebookItem(rank: Int, item: TopNotebookStat) {
                     text = "#$rank",
                     fontWeight = FontWeight.Black,
                     fontSize = 14.sp,
-                    color = Color(0xFF94A3B8),
+                    color = Color(0xFF8A8275),
                     modifier = Modifier.width(28.dp)
                 )
 
@@ -579,12 +590,12 @@ private fun TopNotebookItem(rank: Int, item: TopNotebookStat) {
                         text = item.notebookTitle,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = Color(0xFF0F172A)
+                        color = Color(0xFF2D2B28)
                     )
                     Text(
                         text = "in ${item.folderName} • ${item.strokeCount} strokes",
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        color = Color(0xFF7A756D)
                     )
                 }
             }
@@ -593,7 +604,7 @@ private fun TopNotebookItem(rank: Int, item: TopNotebookStat) {
                 text = "${String.format("%.1f", item.metersWritten)}m",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
-                color = Color(0xFF4C6EF5)
+                color = Color(0xFFC88A4B)
             )
         }
     }
@@ -604,7 +615,7 @@ private fun TopFolderItem(rank: Int, item: TopFolderStat) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        border = BorderStroke(1.dp, Color(0xFFEAE3D2)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -619,7 +630,7 @@ private fun TopFolderItem(rank: Int, item: TopFolderStat) {
                     text = "#$rank",
                     fontWeight = FontWeight.Black,
                     fontSize = 14.sp,
-                    color = Color(0xFF94A3B8),
+                    color = Color(0xFF8A8275),
                     modifier = Modifier.width(28.dp)
                 )
                 Box(
@@ -635,12 +646,12 @@ private fun TopFolderItem(rank: Int, item: TopFolderStat) {
                         text = item.folderName,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = Color(0xFF0F172A)
+                        color = Color(0xFF2D2B28)
                     )
                     Text(
                         text = "${item.strokeCount} total strokes",
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        color = Color(0xFF7A756D)
                     )
                 }
             }
@@ -649,7 +660,7 @@ private fun TopFolderItem(rank: Int, item: TopFolderStat) {
                 text = "${String.format("%.1f", item.metersWritten)}m",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
-                color = Color(0xFF059669)
+                color = Color(0xFFC88A4B)
             )
         }
     }

@@ -102,7 +102,6 @@ fun HomeScreen(
     val entitlement by viewModel.entitlement.collectAsState()
 
     var showCreateFolderDialog by remember { mutableStateOf(false) }
-    var activeLimitDialog by remember { mutableStateOf<com.prsnl.ui.subscription.LimitType?>(null) }
     var selectedFolderForMenu by remember { mutableStateOf<Folder?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -430,13 +429,6 @@ fun HomeScreen(
         }
 
         // Modals & Dialogs
-        activeLimitDialog?.let { limitType ->
-            com.prsnl.ui.subscription.LimitReachedDialog(
-                limitType = limitType,
-                onUpgradeClick = onNavigateToPaywall,
-                onDismiss = { activeLimitDialog = null }
-            )
-        }
 
         if (showCreateFolderDialog) {
             CreateFolderDialog(

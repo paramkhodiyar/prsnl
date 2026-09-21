@@ -92,4 +92,17 @@ class WritingStatsViewModel @Inject constructor(
             }
         }
     }
+
+    fun recalculateStats() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true
+            try {
+                statsRepository.recalculateAllStatsFromNotebooks()
+            } catch (e: Exception) {
+                android.util.Log.e("WritingStatsVM", "Failed to recalculate stats", e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 }

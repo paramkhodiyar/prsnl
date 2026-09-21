@@ -6,23 +6,15 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class MockSubscriptionRepositoryImpl : SubscriptionRepository {
 
-    private val _entitlement = MutableStateFlow(UserEntitlement())
+    private val _entitlement = MutableStateFlow(UserEntitlement(isProUser = true, activePlan = SubscriptionPlan.PRO_YEARLY))
     override val entitlement: StateFlow<UserEntitlement> = _entitlement.asStateFlow()
 
     override suspend fun purchasePlan(plan: SubscriptionPlan): Result<Boolean> {
-        return if (plan != SubscriptionPlan.FREE) {
-            _entitlement.value = UserEntitlement(
-                isProUser = true,
-                activePlan = plan
-            )
-            Result.success(true)
-        } else {
-            _entitlement.value = UserEntitlement(
-                isProUser = false,
-                activePlan = SubscriptionPlan.FREE
-            )
-            Result.success(true)
-        }
+        _entitlement.value = UserEntitlement(
+            isProUser = true,
+            activePlan = SubscriptionPlan.PRO_YEARLY
+        )
+        return Result.success(true)
     }
 
     override suspend fun restorePurchases(): Result<Boolean> {
@@ -35,8 +27,8 @@ class MockSubscriptionRepositoryImpl : SubscriptionRepository {
 
     override suspend fun cancelSubscription(): Result<Boolean> {
         _entitlement.value = UserEntitlement(
-            isProUser = false,
-            activePlan = SubscriptionPlan.FREE
+            isProUser = true,
+            activePlan = SubscriptionPlan.PRO_YEARLY
         )
         return Result.success(true)
     }

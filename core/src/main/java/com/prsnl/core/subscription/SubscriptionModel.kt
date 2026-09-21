@@ -23,11 +23,11 @@ enum class SubscriptionPlan(
 }
 
 data class UserEntitlement(
-    val isProUser: Boolean = false,
-    val activePlan: SubscriptionPlan = SubscriptionPlan.FREE,
-    val maxFoldersAllowed: Int = if (isProUser) Int.MAX_VALUE else 1,
-    val maxNotebooksAllowed: Int = if (isProUser) Int.MAX_VALUE else 3,
-    val canExportHdPdf: Boolean = isProUser,
-    val canUseCustomBrushes: Boolean = isProUser,
-    val canSyncCloud: Boolean = isProUser
+    val isProUser: Boolean = true,
+    val activePlan: SubscriptionPlan = SubscriptionPlan.PRO_YEARLY,
+    val maxFoldersAllowed: Int = Int.MAX_VALUE,
+    val maxNotebooksAllowed: Int = Int.MAX_VALUE,
+    val canExportHdPdf: Boolean = true,
+    val canUseCustomBrushes: Boolean = true,
+    val canSyncCloud: Boolean = true
 )

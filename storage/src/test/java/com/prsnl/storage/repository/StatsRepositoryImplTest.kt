@@ -32,26 +32,34 @@ class StatsRepositoryImplTest {
                 date: String,
                 notebookId: String,
                 folderName: String,
-                strokeCount: Int,
-                lengthUnits: Float
+                strokeCountDelta: Int,
+                lengthUnitsDelta: Float
             ) {
                 val key = "$date-$notebookId"
                 val existing = statsMap[key]
                 val updated = if (existing != null) {
                     existing.copy(
-                        strokeCount = existing.strokeCount + strokeCount,
-                        inkLengthUnits = existing.inkLengthUnits + lengthUnits
+                        strokeCount = (existing.strokeCount + strokeCountDelta).coerceAtLeast(0),
+                        inkLengthUnits = (existing.inkLengthUnits + lengthUnitsDelta).coerceAtLeast(0f)
                     )
                 } else {
                     WritingStatEntity(
                         date = date,
                         notebookId = notebookId,
                         folderName = folderName,
-                        strokeCount = strokeCount,
-                        inkLengthUnits = lengthUnits
+                        strokeCount = strokeCountDelta.coerceAtLeast(0),
+                        inkLengthUnits = lengthUnitsDelta.coerceAtLeast(0f)
                     )
                 }
                 statsMap[key] = updated
+            }
+
+            override suspend fun deleteStatsForNotebook(notebookId: String) {
+                statsMap.entries.removeIf { it.value.notebookId == notebookId }
+            }
+
+            override suspend fun clearAllStats() {
+                statsMap.clear()
             }
 
             override suspend fun insertOrReplace(entity: WritingStatEntity) {
@@ -152,5 +160,17 @@ class StatsRepositoryImplTest {
         assertEquals(0.42f, stats.totalMetersAllTime, 0.001f)
         assertEquals(1, stats.currentStreakDays)
         assertEquals(1, stats.longestStreakDays)
+
+        // Erase one stroke: delta is (-1, -1200f)
+        repository.recordStrokeDelta("nb_1", "Math", -1, -1200f)
+        val afterEraseStats = repository.getOverallStatsSync()
+        assertEquals(1, afterEraseStats.totalStrokes)
+        assertEquals(0.21f, afterEraseStats.totalMetersAllTime, 0.001f)
+
+        // Erase remaining stroke
+        repository.recordStrokeDelta("nb_1", "Math", -1, -1200f)
+        val emptyStats = repository.getOverallStatsSync()
+        assertEquals(0, emptyStats.totalStrokes)
+        assertEquals(0f, emptyStats.totalMetersAllTime, 0.001f)
     }
 }

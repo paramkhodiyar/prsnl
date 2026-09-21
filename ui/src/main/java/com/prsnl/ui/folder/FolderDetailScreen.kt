@@ -105,7 +105,6 @@ fun FolderDetailScreen(
     val allFolders by viewModel.folders.collectAsState()
     val entitlement by viewModel.entitlement.collectAsState()
     var showCreateNotebookDialog by remember { mutableStateOf(false) }
-    var activeLimitDialog by remember { mutableStateOf<com.prsnl.ui.subscription.LimitType?>(null) }
     var selectedNotebookForMenu by remember { mutableStateOf<Notebook?>(null) }
     val context = LocalContext.current
     var activeToast by remember { mutableStateOf<ToastMessage?>(null) }
@@ -153,11 +152,7 @@ fun FolderDetailScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FloatingActionButton(
                         onClick = {
-                            if (allNotebooks.size >= entitlement.maxNotebooksAllowed) {
-                                activeLimitDialog = com.prsnl.ui.subscription.LimitType.NOTEBOOK_LIMIT
-                            } else {
-                                pdfPickerLauncher.launch("application/pdf")
-                            }
+                            pdfPickerLauncher.launch("application/pdf")
                         },
                         containerColor = Color(0xFF4C6EF5),
                         contentColor = Color.White,
@@ -175,11 +170,7 @@ fun FolderDetailScreen(
 
                     FloatingActionButton(
                         onClick = {
-                            if (allNotebooks.size >= entitlement.maxNotebooksAllowed) {
-                                activeLimitDialog = com.prsnl.ui.subscription.LimitType.NOTEBOOK_LIMIT
-                            } else {
-                                showCreateNotebookDialog = true
-                            }
+                            showCreateNotebookDialog = true
                         },
                         containerColor = Color(0xFFC88A4B),
                         contentColor = Color.White,
@@ -255,14 +246,6 @@ fun FolderDetailScreen(
                     )
                 }
             }
-        }
-
-        activeLimitDialog?.let { limitType ->
-            com.prsnl.ui.subscription.LimitReachedDialog(
-                limitType = limitType,
-                onUpgradeClick = onNavigateToPaywall,
-                onDismiss = { activeLimitDialog = null }
-            )
         }
 
         if (showCreateNotebookDialog) {

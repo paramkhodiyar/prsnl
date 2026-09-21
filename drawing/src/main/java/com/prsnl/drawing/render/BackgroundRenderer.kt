@@ -43,6 +43,12 @@ class BackgroundRenderer {
         pageIndex: Int = 0,
         isDarkMode: Boolean = false
     ) {
+        if (background.type == Background.Type.PDF) {
+            // PDF page is rendered natively by the underlying PDFView.
+            // Do NOT draw background color; canvas must remain 100% transparent.
+            return
+        }
+
         val bgColor = if (isDarkMode) background.colorDark else background.colorLight
         canvas.drawColor(bgColor)
 

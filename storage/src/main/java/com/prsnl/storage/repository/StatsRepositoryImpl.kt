@@ -20,26 +20,87 @@ class StatsRepositoryImpl(
     private val writingStatDao: WritingStatDao,
     private val notebookDao: NotebookDao,
     private val folderDao: FolderDao,
-    private val pageDao: PageDao
+    private val pageDao: PageDao,
+    private val pageFileStorage: com.prsnl.storage.PageFileStorage? = null
 ) : StatsRepository {
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US)
+
+    constructor(
+        writingStatDao: WritingStatDao,
+        notebookDao: NotebookDao,
+        folderDao: FolderDao,
+        pageDao: PageDao
+    ) : this(writingStatDao, notebookDao, folderDao, pageDao, null)
 
     override suspend fun recordStroke(
         notebookId: String,
         folderName: String,
         lengthUnits: Float
+    ) = recordStrokeDelta(
+        notebookId = notebookId,
+        folderName = folderName,
+        strokeDelta = 1,
+        lengthUnitsDelta = lengthUnits
+    )
+
+    override suspend fun recordStrokeDelta(
+        notebookId: String,
+        folderName: String,
+        strokeDelta: Int,
+        lengthUnitsDelta: Float
     ) = withContext(Dispatchers.IO) {
-        if (lengthUnits <= 0f && notebookId.isBlank()) return@withContext
+        if (notebookId.isBlank() || (strokeDelta == 0 && lengthUnitsDelta == 0f)) return@withContext
         val today = LocalDate.now().format(dateFormatter)
         val safeFolder = if (folderName.isBlank()) "General" else folderName
         writingStatDao.upsertStat(
             date = today,
             notebookId = notebookId,
             folderName = safeFolder,
-            strokeCount = 1,
-            lengthUnits = lengthUnits
+            strokeCountDelta = strokeDelta,
+            lengthUnitsDelta = lengthUnitsDelta
         )
+    }
+
+    override suspend fun recalculateAllStatsFromNotebooks() = withContext(Dispatchers.IO) {
+        val storage = pageFileStorage ?: return@withContext
+        try {
+            val allNotebooks = notebookDao.getAllNotebooksSync()
+            val today = LocalDate.now().format(dateFormatter)
+            writingStatDao.clearAllStats()
+
+            for (nb in allNotebooks) {
+                val pages = pageDao.getPagesForNotebookSync(nb.id)
+                var totalUnits = 0f
+                var totalStrokes = 0
+
+                for (p in pages) {
+                    val elements = try {
+                        storage.loadPageElements(p.elementFilePath)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    for (el in elements) {
+                        if (el is com.prsnl.document.model.Stroke) {
+                            totalStrokes++
+                            totalUnits += DistanceUtils.calculatePathLength(el.points.map { Pair(it.x, it.y) })
+                        }
+                    }
+                }
+
+                if (totalStrokes > 0 && totalUnits > 0f) {
+                    writingStatDao.upsertStat(
+                        date = today,
+                        notebookId = nb.id,
+                        folderName = nb.folderName.ifBlank { "General" },
+                        strokeCountDelta = totalStrokes,
+                        lengthUnitsDelta = totalUnits
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("StatsRepo", "Error recalculating stats", e)
+        }
     }
 
     override fun getOverallStatsFlow(): Flow<OverallWritingStats> {

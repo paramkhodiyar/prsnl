@@ -195,34 +195,60 @@ class PageEditorViewModel(
         updateUndoRedoStates()
         triggerAutosave()
 
-        recordCommandStats(page.notebookId, command)
+        val (strokeDelta, lengthDelta) = calculateCommandStatDelta(command)
+        recordCommandStats(page.notebookId, strokeDelta, lengthDelta)
     }
 
-    private fun recordCommandStats(notebookId: String, command: Command) {
+    private fun recordCommandStats(notebookId: String, strokeDelta: Int, lengthDelta: Float) {
+        if (strokeDelta == 0 && lengthDelta == 0f) return
         val repo = statsRepository ?: return
         val folderName = _activeNotebook.value?.folderName ?: "General"
         viewModelScope.launch(Dispatchers.IO) {
-            val strokeLength = extractTotalStrokeLength(command)
-            if (strokeLength > 0f) {
-                repo.recordStroke(notebookId, folderName, strokeLength)
-            }
+            repo.recordStrokeDelta(notebookId, folderName, strokeDelta, lengthDelta)
         }
     }
 
-    private fun extractTotalStrokeLength(command: Command): Float {
+    private fun calculateCommandStatDelta(command: Command): Pair<Int, Float> {
         return when (command) {
             is Command.AddElement -> {
                 val elem = command.element
                 if (elem is Stroke) {
-                    calculateStrokeLength(elem.points)
+                    Pair(1, calculateStrokeLength(elem.points))
                 } else {
-                    0f
+                    Pair(0, 0f)
+                }
+            }
+            is Command.DeleteElement -> {
+                val elem = command.element
+                if (elem is Stroke) {
+                    Pair(-1, -calculateStrokeLength(elem.points))
+                } else {
+                    Pair(0, 0f)
                 }
             }
             is Command.CompoundCommand -> {
-                command.commands.sumOf { extractTotalStrokeLength(it).toDouble() }.toFloat()
+                val deletedStrokes = command.commands.filterIsInstance<Command.DeleteElement>().mapNotNull { it.element as? Stroke }
+                val addedStrokes = command.commands.filterIsInstance<Command.AddElement>().mapNotNull { it.element as? Stroke }
+
+                if (deletedStrokes.isNotEmpty() && addedStrokes.isNotEmpty()) {
+                    // Stroke split / pixel eraser operation
+                    val deletedLen = deletedStrokes.sumOf { calculateStrokeLength(it.points).toDouble() }.toFloat()
+                    val addedLen = addedStrokes.sumOf { calculateStrokeLength(it.points).toDouble() }.toFloat()
+                    val lengthDelta = addedLen - deletedLen // negative because erased
+                    val strokeDelta = if (addedStrokes.isEmpty()) -deletedStrokes.size else 0
+                    Pair(strokeDelta, lengthDelta)
+                } else {
+                    var totalStrokes = 0
+                    var totalLen = 0f
+                    for (sub in command.commands) {
+                        val (s, l) = calculateCommandStatDelta(sub)
+                        totalStrokes += s
+                        totalLen += l
+                    }
+                    Pair(totalStrokes, totalLen)
+                }
             }
-            else -> 0f
+            else -> Pair(0, 0f)
         }
     }
 
@@ -244,13 +270,18 @@ class PageEditorViewModel(
 
         val page = currentPages[pageIndex]
         val manager = undoRedoManagers[page.id] ?: return
-        val updatedPage = manager.undo()
+        val result = manager.undoWithCommand()
 
-        if (updatedPage != null) {
+        if (result != null) {
+            val (updatedPage, command) = result
             currentPages[pageIndex] = updatedPage
             _pagesList.value = currentPages
             updateUndoRedoStates()
             triggerAutosave()
+
+            val (strokeDelta, lengthDelta) = calculateCommandStatDelta(command)
+            // Undo inverts the executed action's delta
+            recordCommandStats(page.notebookId, -strokeDelta, -lengthDelta)
         }
     }
 
@@ -261,13 +292,18 @@ class PageEditorViewModel(
 
         val page = currentPages[pageIndex]
         val manager = undoRedoManagers[page.id] ?: return
-        val updatedPage = manager.redo()
+        val result = manager.redoWithCommand()
 
-        if (updatedPage != null) {
+        if (result != null) {
+            val (updatedPage, command) = result
             currentPages[pageIndex] = updatedPage
             _pagesList.value = currentPages
             updateUndoRedoStates()
             triggerAutosave()
+
+            val (strokeDelta, lengthDelta) = calculateCommandStatDelta(command)
+            // Redo reapplies the action's delta
+            recordCommandStats(page.notebookId, strokeDelta, lengthDelta)
         }
     }
 

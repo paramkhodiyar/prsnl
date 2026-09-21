@@ -8,13 +8,9 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,14 +46,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -87,10 +80,10 @@ fun YearlyWrappedScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0F172A)),
+                .background(Color(0xFF1E1C1A)),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(color = Color(0xFF6366F1))
+            CircularProgressIndicator(color = Color(0xFFC88A4B))
         }
         return
     }
@@ -134,7 +127,7 @@ fun YearlyWrappedScreen(
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(
-                                if (i <= pagerState.currentPage) Color.White else Color.White.copy(alpha = 0.3f)
+                                if (i <= pagerState.currentPage) Color(0xFFC88A4B) else Color.White.copy(alpha = 0.25f)
                             )
                     )
                 }
@@ -147,18 +140,18 @@ fun YearlyWrappedScreen(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.3f))
+                    .background(Color.Black.copy(alpha = 0.35f))
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Close Wrapped",
-                    tint = Color.White,
+                    tint = Color(0xFFFAF8F5),
                     modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        // Tap to advance hint / button at bottom
+        // Tap to advance hint at bottom
         if (pagerState.currentPage < totalSlides - 1) {
             Box(
                 modifier = Modifier
@@ -169,7 +162,7 @@ fun YearlyWrappedScreen(
             ) {
                 Text(
                     text = "Swipe to continue ›",
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = Color(0xFFE2D7C5).copy(alpha = 0.7f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.clickable {
@@ -183,7 +176,7 @@ fun YearlyWrappedScreen(
     }
 }
 
-// SLIDE 0: Total Distance Written
+// SLIDE 0: Total Distance Written (Centered, Warm Espresso & Amber)
 @Composable
 private fun SlideDistance(data: YearlyWrappedData) {
     val animatedMeters by animateFloatAsState(
@@ -195,11 +188,7 @@ private fun SlideDistance(data: YearlyWrappedData) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1E1B4B), Color(0xFF312E81), Color(0xFF4F46E5))
-                )
-            )
+            .background(Color(0xFF1E1C1A))
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -209,40 +198,45 @@ private fun SlideDistance(data: YearlyWrappedData) {
         ) {
             Text(
                 text = "${data.year} IN NUMBERS",
-                color = Color(0xFFA5B4FC),
+                color = Color(0xFFC88A4B),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = "Your stylus traveled",
-                color = Color.White,
+                color = Color(0xFFFAF8F5),
                 fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = String.format("%.1f", animatedMeters),
-                color = Color(0xFFFDE047),
+                color = Color(0xFFC88A4B),
                 fontSize = 68.sp,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center
             )
             Text(
                 text = "meters of ink",
-                color = Color.White,
+                color = Color(0xFFFAF8F5),
                 fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(28.dp))
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White.copy(alpha = 0.12f),
+                color = Color(0xFF2D2B28),
+                border = BorderStroke(1.dp, Color(0xFF47433E)),
                 modifier = Modifier.padding(horizontal = 12.dp)
             ) {
                 Text(
                     text = data.comparisonLandmark,
-                    color = Color.White,
+                    color = Color(0xFFE2D7C5),
                     fontSize = 15.sp,
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Medium,
@@ -253,17 +247,13 @@ private fun SlideDistance(data: YearlyWrappedData) {
     }
 }
 
-// SLIDE 1: Top Notebook & Top Folder
+// SLIDE 1: Top Notebook & Top Folder (Centered, Warm Dark Saddle)
 @Composable
 private fun SlideTopNotebook(data: YearlyWrappedData) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF064E3B), Color(0xFF047857), Color(0xFF059669))
-                )
-            )
+            .background(Color(0xFF24201D))
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -273,23 +263,26 @@ private fun SlideTopNotebook(data: YearlyWrappedData) {
         ) {
             Text(
                 text = "YOUR SANCTUARY OF IDEAS",
-                color = Color(0xFFA7F3D0),
+                color = Color(0xFFC88A4B),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = "Your #1 Notebook was",
-                color = Color.White,
+                color = Color(0xFFFAF8F5),
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(24.dp))
 
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFAF8F5)),
+                border = BorderStroke(1.5.dp, Color(0xFFC88A4B)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -300,27 +293,29 @@ private fun SlideTopNotebook(data: YearlyWrappedData) {
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(data.topNotebook?.coverColor ?: 0xFF4C6EF5.toInt()))
+                            .background(Color(data.topNotebook?.coverColor ?: 0xFFC88A4B.toInt()))
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = data.topNotebook?.notebookTitle ?: "My Notebook",
-                        color = Color(0xFF0F172A),
+                        color = Color(0xFF2D2B28),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Black,
                         textAlign = TextAlign.Center
                     )
                     Text(
                         text = "Folder: ${data.topNotebook?.folderName ?: "General"}",
-                        color = Color(0xFF64748B),
-                        fontSize = 14.sp
+                        color = Color(0xFF7A756D),
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "${String.format("%.1f", data.topNotebook?.metersWritten ?: 0f)} meters written",
-                        color = Color(0xFF059669),
+                        color = Color(0xFFC88A4B),
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -328,17 +323,13 @@ private fun SlideTopNotebook(data: YearlyWrappedData) {
     }
 }
 
-// SLIDE 2: Rhythm & Busiest Month
+// SLIDE 2: Rhythm & Busiest Month (Centered)
 @Composable
 private fun SlideRhythm(data: YearlyWrappedData) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF881337), Color(0xFFBE123C), Color(0xFFE11D48))
-                )
-            )
+            .background(Color(0xFF221E1C))
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -348,41 +339,46 @@ private fun SlideRhythm(data: YearlyWrappedData) {
         ) {
             Text(
                 text = "CREATIVE PEAK",
-                color = Color(0xFFFECDD3),
+                color = Color(0xFFC88A4B),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = "Your most prolific month was",
-                color = Color.White,
+                color = Color(0xFFFAF8F5),
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = data.busiestMonth ?: "Active Days",
-                color = Color(0xFFFDE047),
+                color = Color(0xFFC88A4B),
                 fontSize = 44.sp,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "${String.format("%.1f", data.busiestMonthMeters)} meters penned in this month alone",
-                color = Color.White.copy(alpha = 0.9f),
+                color = Color(0xFFE2D7C5),
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(28.dp))
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color.White.copy(alpha = 0.15f)
+                color = Color(0xFF2D2B28),
+                border = BorderStroke(1.dp, Color(0xFF47433E))
             ) {
                 Text(
                     text = "You wrote across ${data.activeDaysCount} separate days this year.",
-                    color = Color.White,
+                    color = Color(0xFFFAF8F5),
                     fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.padding(16.dp)
                 )
             }
@@ -390,17 +386,13 @@ private fun SlideRhythm(data: YearlyWrappedData) {
     }
 }
 
-// SLIDE 3: Total Pages + Total Strokes
+// SLIDE 3: Total Pages + Total Strokes (Centered)
 @Composable
 private fun SlideVolume(data: YearlyWrappedData) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0C4A6E), Color(0xFF0284C7), Color(0xFF0284C7))
-                )
-            )
+            .background(Color(0xFF1E1C1A))
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -410,16 +402,18 @@ private fun SlideVolume(data: YearlyWrappedData) {
         ) {
             Text(
                 text = "VOLUME OF WORK",
-                color = Color(0xFFBAE6FD),
+                color = Color(0xFFC88A4B),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(28.dp))
 
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D2B28)),
+                border = BorderStroke(1.dp, Color(0xFF47433E)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -428,15 +422,17 @@ private fun SlideVolume(data: YearlyWrappedData) {
                 ) {
                     Text(
                         text = "${data.totalStrokesThisYear}",
-                        color = Color(0xFFFDE047),
+                        color = Color(0xFFC88A4B),
                         fontSize = 52.sp,
-                        fontWeight = FontWeight.Black
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
                     )
                     Text(
                         text = "Stylus Strokes Drawn",
-                        color = Color.White,
+                        color = Color(0xFFFAF8F5),
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -445,7 +441,8 @@ private fun SlideVolume(data: YearlyWrappedData) {
 
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D2B28)),
+                border = BorderStroke(1.dp, Color(0xFF47433E)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -454,15 +451,17 @@ private fun SlideVolume(data: YearlyWrappedData) {
                 ) {
                     Text(
                         text = "${data.totalPagesThisYear}",
-                        color = Color.White,
+                        color = Color(0xFFFAF8F5),
                         fontSize = 44.sp,
-                        fontWeight = FontWeight.Black
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
                     )
                     Text(
                         text = "Pages Created",
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = Color(0xFFE2D7C5),
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -470,17 +469,13 @@ private fun SlideVolume(data: YearlyWrappedData) {
     }
 }
 
-// SLIDE 4: Consistency & Longest Streak
+// SLIDE 4: Consistency & Longest Streak (Centered)
 @Composable
 private fun SlideStreak(data: YearlyWrappedData) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF78350F), Color(0xFFB45309), Color(0xFFD97706))
-                )
-            )
+            .background(Color(0xFF24201D))
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -491,36 +486,39 @@ private fun SlideStreak(data: YearlyWrappedData) {
             Icon(
                 imageVector = Icons.Default.LocalFireDepartment,
                 contentDescription = null,
-                tint = Color(0xFFFDE047),
+                tint = Color(0xFFE07A2B),
                 modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "CONSISTENCY MATTERS",
-                color = Color(0xFFFED7AA),
+                color = Color(0xFFC88A4B),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Black,
-                letterSpacing = 2.sp
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = "Longest Writing Streak",
-                color = Color.White,
+                color = Color(0xFFFAF8F5),
                 fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "${data.longestStreakDays} Days",
-                color = Color(0xFFFDE047),
+                color = Color(0xFFC88A4B),
                 fontSize = 60.sp,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = if (data.longestStreakDays >= 7) "A full week or more of uninterrupted handwritten focus!"
                        else "Every day written builds momentum. Great effort!",
-                color = Color.White.copy(alpha = 0.9f),
+                color = Color(0xFFE2D7C5),
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -529,7 +527,7 @@ private fun SlideStreak(data: YearlyWrappedData) {
     }
 }
 
-// SLIDE 5: Final Shareable Summary Card
+// SLIDE 5: Final Shareable Summary Card (Centered, Warm Moleskine Stationery Theme)
 @Composable
 private fun SlideShareCard(
     data: YearlyWrappedData,
@@ -538,11 +536,7 @@ private fun SlideShareCard(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0F172A))
-                )
-            )
+            .background(Color(0xFF1E1C1A))
             .padding(horizontal = 24.dp, vertical = 64.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -553,8 +547,8 @@ private fun SlideShareCard(
             // Main Shareable Card
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                border = BorderStroke(2.dp, Brush.linearGradient(listOf(Color(0xFF6366F1), Color(0xFFEC4899)))),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D2B28)),
+                border = BorderStroke(2.dp, Color(0xFFC88A4B)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -564,21 +558,23 @@ private fun SlideShareCard(
                 ) {
                     Text(
                         text = "PRSNL ${data.year} WRAPPED",
-                        color = Color(0xFFEC4899),
+                        color = Color(0xFFC88A4B),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp
+                        letterSpacing = 2.sp,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
                         text = "${String.format("%.1f", data.totalMetersThisYear)}m Written",
-                        color = Color.White,
+                        color = Color(0xFFFAF8F5),
                         fontSize = 32.sp,
-                        fontWeight = FontWeight.Black
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
                     )
                     Text(
                         text = data.comparisonLandmark,
-                        color = Color(0xFF94A3B8),
+                        color = Color(0xFFE2D7C5),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
@@ -586,7 +582,8 @@ private fun SlideShareCard(
 
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF334155),
+                        color = Color(0xFF22201D),
+                        border = BorderStroke(1.dp, Color(0xFF47433E)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
@@ -594,24 +591,24 @@ private fun SlideShareCard(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Top Notebook", color = Color(0xFF94A3B8), fontSize = 12.sp)
-                                Text(data.topNotebook?.notebookTitle ?: "—", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Top Notebook", color = Color(0xFF8A8275), fontSize = 12.sp)
+                                Text(data.topNotebook?.notebookTitle ?: "—", color = Color(0xFFFAF8F5), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Longest Streak", color = Color(0xFF94A3B8), fontSize = 12.sp)
-                                Text("${data.longestStreakDays} days", color = Color(0xFFFDE047), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Longest Streak", color = Color(0xFF8A8275), fontSize = 12.sp)
+                                Text("${data.longestStreakDays} days", color = Color(0xFFC88A4B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Strokes Drawn", color = Color(0xFF94A3B8), fontSize = 12.sp)
-                                Text("${data.totalStrokesThisYear}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Strokes Drawn", color = Color(0xFF8A8275), fontSize = 12.sp)
+                                Text("${data.totalStrokesThisYear}", color = Color(0xFFFAF8F5), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -623,17 +620,17 @@ private fun SlideShareCard(
             // Share Button
             Button(
                 onClick = onShareClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC88A4B)),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
             ) {
-                Icon(imageVector = Icons.Default.Share, contentDescription = null, tint = Color.White)
+                Icon(imageVector = Icons.Default.Share, contentDescription = null, tint = Color(0xFF2D2B28))
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = "Share Your Wrapped",
-                    color = Color.White,
+                    color = Color(0xFF2D2B28),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -642,7 +639,7 @@ private fun SlideShareCard(
     }
 }
 
-// Bitmap Generation & Sharing Utility (with try/catch crash safety)
+// Bitmap Generation & Sharing Utility (Strict brand warm palette)
 private fun shareSummaryCard(context: Context, data: YearlyWrappedData) {
     try {
         val width = 800
@@ -650,24 +647,33 @@ private fun shareSummaryCard(context: Context, data: YearlyWrappedData) {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        // Background dark gradient
+        // Background dark stationery
         val bgPaint = Paint().apply {
-            color = android.graphics.Color.rgb(15, 23, 42) // #0F172A
+            color = android.graphics.Color.rgb(30, 28, 26) // #1E1C1A
             isAntiAlias = true
         }
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
 
-        // Gradient border card
+        // Warm Card
         val cardPaint = Paint().apply {
-            color = android.graphics.Color.rgb(30, 41, 59) // #1E293B
+            color = android.graphics.Color.rgb(45, 43, 40) // #2D2B28
             isAntiAlias = true
         }
         val cardRect = RectF(50f, 80f, width - 50f, height - 120f)
         canvas.drawRoundRect(cardRect, 40f, 40f, cardPaint)
 
+        // Card Border in Amber
+        val borderPaint = Paint().apply {
+            color = android.graphics.Color.rgb(200, 138, 75) // #C88A4B
+            style = Paint.Style.STROKE
+            strokeWidth = 6f
+            isAntiAlias = true
+        }
+        canvas.drawRoundRect(cardRect, 40f, 40f, borderPaint)
+
         // Title Paint
         val accentPaint = Paint().apply {
-            color = android.graphics.Color.rgb(236, 72, 153) // Pink #EC4899
+            color = android.graphics.Color.rgb(200, 138, 75) // #C88A4B
             textSize = 28f
             isFakeBoldText = true
             textAlign = Paint.Align.CENTER
@@ -677,7 +683,7 @@ private fun shareSummaryCard(context: Context, data: YearlyWrappedData) {
 
         // Big Meters
         val bigMetersPaint = Paint().apply {
-            color = android.graphics.Color.WHITE
+            color = android.graphics.Color.rgb(250, 248, 245) // #FAF8F5
             textSize = 72f
             isFakeBoldText = true
             textAlign = Paint.Align.CENTER
@@ -687,7 +693,7 @@ private fun shareSummaryCard(context: Context, data: YearlyWrappedData) {
 
         // Comparison line
         val subPaint = Paint().apply {
-            color = android.graphics.Color.rgb(148, 163, 184)
+            color = android.graphics.Color.rgb(226, 215, 197) // #E2D7C5
             textSize = 24f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
@@ -696,20 +702,20 @@ private fun shareSummaryCard(context: Context, data: YearlyWrappedData) {
 
         // Inner stats box
         val innerBoxPaint = Paint().apply {
-            color = android.graphics.Color.rgb(51, 65, 85) // #334155
+            color = android.graphics.Color.rgb(34, 32, 29) // #22201D
             isAntiAlias = true
         }
         val innerBox = RectF(100f, 400f, width - 100f, 850f)
         canvas.drawRoundRect(innerBox, 30f, 30f, innerBoxPaint)
 
         val statKeyPaint = Paint().apply {
-            color = android.graphics.Color.rgb(203, 213, 225)
+            color = android.graphics.Color.rgb(180, 172, 160)
             textSize = 26f
             textAlign = Paint.Align.LEFT
             isAntiAlias = true
         }
         val statValPaint = Paint().apply {
-            color = android.graphics.Color.WHITE
+            color = android.graphics.Color.rgb(250, 248, 245)
             textSize = 28f
             isFakeBoldText = true
             textAlign = Paint.Align.RIGHT
@@ -726,7 +732,7 @@ private fun shareSummaryCard(context: Context, data: YearlyWrappedData) {
 
         // Row 3: Longest Streak
         canvas.drawText("Longest Streak", 140f, 660f, statKeyPaint)
-        val flameValPaint = Paint(statValPaint).apply { color = android.graphics.Color.rgb(253, 224, 71) }
+        val flameValPaint = Paint(statValPaint).apply { color = android.graphics.Color.rgb(200, 138, 75) }
         canvas.drawText("${data.longestStreakDays} days", width - 140f, 660f, flameValPaint)
 
         // Row 4: Total Strokes
@@ -735,7 +741,7 @@ private fun shareSummaryCard(context: Context, data: YearlyWrappedData) {
 
         // Branding watermark
         val brandingPaint = Paint().apply {
-            color = android.graphics.Color.rgb(100, 116, 139)
+            color = android.graphics.Color.rgb(138, 130, 117)
             textSize = 22f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true

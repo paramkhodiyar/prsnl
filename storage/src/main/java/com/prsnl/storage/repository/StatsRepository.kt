@@ -61,6 +61,15 @@ interface StatsRepository {
         lengthUnits: Float
     )
 
+    suspend fun recordStrokeDelta(
+        notebookId: String,
+        folderName: String,
+        strokeDelta: Int,
+        lengthUnitsDelta: Float
+    )
+
+    suspend fun recalculateAllStatsFromNotebooks()
+
     fun getOverallStatsFlow(): Flow<OverallWritingStats>
     suspend fun getOverallStatsSync(): OverallWritingStats
 

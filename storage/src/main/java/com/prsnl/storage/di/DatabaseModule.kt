@@ -75,13 +75,15 @@ object DatabaseModule {
         writingStatDao: com.prsnl.storage.dao.WritingStatDao,
         notebookDao: NotebookDao,
         folderDao: FolderDao,
-        pageDao: PageDao
+        pageDao: PageDao,
+        fileStorage: PageFileStorage
     ): com.prsnl.storage.repository.StatsRepository {
         return com.prsnl.storage.repository.StatsRepositoryImpl(
             writingStatDao,
             notebookDao,
             folderDao,
-            pageDao
+            pageDao,
+            fileStorage
         )
     }
 }

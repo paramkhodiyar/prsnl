@@ -103,6 +103,7 @@ class DrawingCanvasView @JvmOverloads constructor(
     var onToolModeAutoSwitchRequested: ((CanvasToolMode) -> Unit)? = null
     var onInteractionStarted: (() -> Unit)? = null
     var onSelectionChanged: ((Boolean) -> Unit)? = null
+    var passThroughAllTouches: Boolean = false
 
     private var lastTappedTextBoxId: String? = null
     private var lastTextBoxTapTimeMs: Long = 0L
@@ -220,6 +221,9 @@ class DrawingCanvasView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (passThroughAllTouches) {
+            return false
+        }
         val action = event.actionMasked
         if (action == MotionEvent.ACTION_DOWN) {
             onInteractionStarted?.invoke()

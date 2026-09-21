@@ -43,10 +43,10 @@ interface WritingStatDao {
     @Query(
         """
         INSERT INTO writing_stats (date, notebookId, folderName, strokeCount, inkLengthUnits)
-        VALUES (:date, :notebookId, :folderName, :strokeCount, :lengthUnits)
+        VALUES (:date, :notebookId, :folderName, MAX(0, :strokeCountDelta), MAX(0.0, :lengthUnitsDelta))
         ON CONFLICT(date, notebookId) DO UPDATE SET
-            strokeCount = strokeCount + :strokeCount,
-            inkLengthUnits = inkLengthUnits + :lengthUnits,
+            strokeCount = MAX(0, strokeCount + :strokeCountDelta),
+            inkLengthUnits = MAX(0.0, inkLengthUnits + :lengthUnitsDelta),
             folderName = :folderName
         """
     )
@@ -54,9 +54,15 @@ interface WritingStatDao {
         date: String,
         notebookId: String,
         folderName: String,
-        strokeCount: Int,
-        lengthUnits: Float
+        strokeCountDelta: Int,
+        lengthUnitsDelta: Float
     )
+
+    @Query("DELETE FROM writing_stats WHERE notebookId = :notebookId")
+    suspend fun deleteStatsForNotebook(notebookId: String)
+
+    @Query("DELETE FROM writing_stats")
+    suspend fun clearAllStats()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplace(entity: WritingStatEntity)
