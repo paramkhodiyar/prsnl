@@ -64,6 +64,7 @@ fun PdfReaderScreen(
     var isFingerDrawingEnabled by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
     var pdfViewRef by remember { mutableStateOf<com.github.barteksc.pdfviewer.PDFView?>(null) }
+    var overlayViewRef by remember { mutableStateOf<PdfAnnotationOverlayView?>(null) }
 
     // Launcher to re-link or attach missing PDF binary on device
     val pdfPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -193,15 +194,6 @@ fun PdfReaderScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         if (pdfFile != null && pdfFile.exists()) {
-                            var overlayViewRef by remember { mutableStateOf<PdfAnnotationOverlayView?>(null) }
-
-                            val strokeRenderer = remember { StrokeRenderer() }
-                            val shapeRenderer = remember { ShapeRenderer() }
-                            val textPaint = remember {
-                                Paint().apply {
-                                    isAntiAlias = true
-                                }
-                            }
 
                             // 1. High-performance continuous PDF View with locked, synchronized annotation rendering
                             AndroidView(
@@ -222,41 +214,14 @@ fun PdfReaderScreen(
                                             .onError { t ->
                                                 android.util.Log.e("PdfReader", "Error loading PDF", t)
                                             }
-                                            .onDrawAll { canvas, pageWidth, pageHeight, displayedPageNum ->
-                                                val page = pages.getOrNull(displayedPageNum) ?: return@onDrawAll
-                                                if (page.elements.isEmpty()) return@onDrawAll
-
-                                                val secondaryOffset = com.github.barteksc.pdfviewer.PdfViewUtils.getSecondaryOffset(this, displayedPageNum)
-                                                canvas.save()
-                                                canvas.translate(secondaryOffset, 0f)
-                                                val scaleX = pageWidth / page.width
-                                                val scaleY = pageHeight / page.height
-                                                canvas.scale(scaleX, scaleY)
-
-                                                for (element in page.elements) {
-                                                    when (element) {
-                                                        is Stroke -> strokeRenderer.renderCommittedStroke(canvas, element)
-                                                        is Shape -> shapeRenderer.renderShape(canvas, element)
-                                                        is TextBox -> {
-                                                            textPaint.color = element.color
-                                                            textPaint.textSize = element.fontSize
-                                                            canvas.drawText(element.content, element.boundingBox.left, element.boundingBox.top + element.fontSize, textPaint)
-                                                        }
-                                                        is ImageElement -> {
-                                                            try {
-                                                                val bitmap = BitmapFactory.decodeFile(element.assetPath)
-                                                                if (bitmap != null) {
-                                                                    val b = element.boundingBox
-                                                                    canvas.drawBitmap(bitmap, null, RectF(b.left, b.top, b.right, b.bottom), null)
-                                                                }
-                                                            } catch (_: Exception) {}
-                                                        }
-                                                        else -> {}
-                                                    }
-                                                }
-                                                canvas.restore()
+                                            .onPageScroll { _, _ ->
+                                                overlayViewRef?.invalidate()
                                             }
                                             .load()
+
+                                        viewTreeObserver.addOnScrollChangedListener {
+                                            overlayViewRef?.invalidate()
+                                        }
 
                                         pdfViewRef = this
                                         overlayViewRef?.pdfView = this
@@ -375,10 +340,12 @@ fun PdfReaderScreen(
                 onSelectColor = { color -> selectedColor = color },
                 onUndo = {
                     viewModel.undo()
+                    overlayViewRef?.invalidate()
                     pdfViewRef?.invalidate()
                 },
                 onRedo = {
                     viewModel.redo()
+                    overlayViewRef?.invalidate()
                     pdfViewRef?.invalidate()
                 },
                 modifier = Modifier
