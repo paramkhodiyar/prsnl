@@ -24,9 +24,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import android.graphics.BitmapFactory
+import android.graphics.Paint
+import android.graphics.RectF
+import com.prsnl.document.model.ImageElement
 import com.prsnl.document.model.Page
+import com.prsnl.document.model.Shape
+import com.prsnl.document.model.Stroke
+import com.prsnl.document.model.TextBox
+import com.prsnl.drawing.render.ShapeRenderer
+import com.prsnl.drawing.render.StrokeRenderer
 import com.prsnl.drawing.view.CanvasToolMode
-import com.prsnl.drawing.view.DrawingCanvasView
 import com.prsnl.pdf.PdfExporter
 import com.prsnl.ui.common.BrushPalettes
 import com.prsnl.ui.editor.PageEditorViewModel
@@ -55,6 +63,7 @@ fun PdfReaderScreen(
     var selectedWidth by remember { mutableFloatStateOf(6f) }
     var isFingerDrawingEnabled by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
+    var pdfViewRef by remember { mutableStateOf<com.github.barteksc.pdfviewer.PDFView?>(null) }
 
     // Launcher to re-link or attach missing PDF binary on device
     val pdfPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -184,7 +193,17 @@ fun PdfReaderScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         if (pdfFile != null && pdfFile.exists()) {
-                            // High-performance continuous PDF View
+                            var overlayViewRef by remember { mutableStateOf<PdfAnnotationOverlayView?>(null) }
+
+                            val strokeRenderer = remember { StrokeRenderer() }
+                            val shapeRenderer = remember { ShapeRenderer() }
+                            val textPaint = remember {
+                                Paint().apply {
+                                    isAntiAlias = true
+                                }
+                            }
+
+                            // 1. High-performance continuous PDF View with locked, synchronized annotation rendering
                             AndroidView(
                                 factory = { ctx ->
                                     com.github.barteksc.pdfviewer.PDFView(ctx, null).apply {
@@ -203,12 +222,84 @@ fun PdfReaderScreen(
                                             .onError { t ->
                                                 android.util.Log.e("PdfReader", "Error loading PDF", t)
                                             }
+                                            .onDrawAll { canvas, pageWidth, pageHeight, displayedPageNum ->
+                                                val page = pages.getOrNull(displayedPageNum) ?: return@onDrawAll
+                                                if (page.elements.isEmpty()) return@onDrawAll
+
+                                                val secondaryOffset = com.github.barteksc.pdfviewer.PdfViewUtils.getSecondaryOffset(this, displayedPageNum)
+                                                canvas.save()
+                                                canvas.translate(secondaryOffset, 0f)
+                                                val scaleX = pageWidth / page.width
+                                                val scaleY = pageHeight / page.height
+                                                canvas.scale(scaleX, scaleY)
+
+                                                for (element in page.elements) {
+                                                    when (element) {
+                                                        is Stroke -> strokeRenderer.renderCommittedStroke(canvas, element)
+                                                        is Shape -> shapeRenderer.renderShape(canvas, element)
+                                                        is TextBox -> {
+                                                            textPaint.color = element.color
+                                                            textPaint.textSize = element.fontSize
+                                                            canvas.drawText(element.content, element.boundingBox.left, element.boundingBox.top + element.fontSize, textPaint)
+                                                        }
+                                                        is ImageElement -> {
+                                                            try {
+                                                                val bitmap = BitmapFactory.decodeFile(element.assetPath)
+                                                                if (bitmap != null) {
+                                                                    val b = element.boundingBox
+                                                                    canvas.drawBitmap(bitmap, null, RectF(b.left, b.top, b.right, b.bottom), null)
+                                                                }
+                                                            } catch (_: Exception) {}
+                                                        }
+                                                        else -> {}
+                                                    }
+                                                }
+                                                canvas.restore()
+                                            }
                                             .load()
+
+                                        pdfViewRef = this
+                                        overlayViewRef?.pdfView = this
                                     }
                                 },
                                 update = { pdfView ->
+                                    pdfViewRef = pdfView
+                                    overlayViewRef?.pdfView = pdfView
                                     if (pdfView.currentPage != activeIndex && activeIndex in 0 until pdfView.pageCount) {
                                         pdfView.jumpTo(activeIndex)
+                                    }
+                                    pdfView.invalidate()
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            // 2. Stylus and Touch Overlay for in-flight stroke tracking
+                            AndroidView(
+                                factory = { ctx ->
+                                    PdfAnnotationOverlayView(ctx).apply {
+                                        this.pdfView = pdfViewRef
+                                        this.pages = pages
+                                        this.currentToolMode = currentTool
+                                        this.selectedColor = selectedColor
+                                        this.selectedWidth = selectedWidth
+                                        this.isFingerDrawingEnabled = isFingerDrawingEnabled
+                                        this.onCommandIssued = { pageIdx, cmd ->
+                                            viewModel.executeCommand(pageIdx, cmd)
+                                            pdfViewRef?.invalidate()
+                                        }
+                                        overlayViewRef = this
+                                    }
+                                },
+                                update = { overlay ->
+                                    overlay.pdfView = pdfViewRef
+                                    overlay.pages = pages
+                                    overlay.currentToolMode = currentTool
+                                    overlay.selectedColor = selectedColor
+                                    overlay.selectedWidth = selectedWidth
+                                    overlay.isFingerDrawingEnabled = isFingerDrawingEnabled
+                                    overlay.onCommandIssued = { pageIdx, cmd ->
+                                        viewModel.executeCommand(pageIdx, cmd)
+                                        pdfViewRef?.invalidate()
                                     }
                                 },
                                 modifier = Modifier.fillMaxSize()
@@ -270,45 +361,6 @@ fun PdfReaderScreen(
                                 }
                             }
                         }
-
-                        // Transparent ink & annotation canvas layer positioned over the PDF
-                        if (activePage != null) {
-                            AndroidView(
-                                factory = { ctx ->
-                                    DrawingCanvasView(ctx).apply {
-                                        this.pageIndex = activeIndex
-                                        this.documentWidth = activePage.width
-                                        this.documentHeight = activePage.height
-                                        this.currentBackground = activePage.background
-                                        this.currentToolMode = currentTool
-                                        this.currentColor = selectedColor
-                                        this.currentBaseWidth = selectedWidth
-                                        this.isFingerDrawingEnabled = isFingerDrawingEnabled
-                                        this.passThroughAllTouches = (currentTool == CanvasToolMode.SELECT)
-                                        this.committedElements = activePage.elements
-                                        this.onCommandIssued = { cmd ->
-                                            viewModel.executeCommand(activeIndex, cmd)
-                                        }
-                                    }
-                                },
-                                update = { view ->
-                                    view.pageIndex = activeIndex
-                                    view.documentWidth = activePage.width
-                                    view.documentHeight = activePage.height
-                                    view.currentBackground = activePage.background
-                                    view.currentToolMode = currentTool
-                                    view.currentColor = selectedColor
-                                    view.currentBaseWidth = selectedWidth
-                                    view.isFingerDrawingEnabled = isFingerDrawingEnabled
-                                    view.passThroughAllTouches = (currentTool == CanvasToolMode.SELECT)
-                                    view.committedElements = activePage.elements
-                                    view.onCommandIssued = { cmd ->
-                                        viewModel.executeCommand(activeIndex, cmd)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
                     }
                 }
             }
@@ -321,8 +373,14 @@ fun PdfReaderScreen(
                 canRedo = canRedo,
                 onSelectTool = { tool -> viewModel.setToolMode(tool) },
                 onSelectColor = { color -> selectedColor = color },
-                onUndo = { viewModel.undo() },
-                onRedo = { viewModel.redo() },
+                onUndo = {
+                    viewModel.undo()
+                    pdfViewRef?.invalidate()
+                },
+                onRedo = {
+                    viewModel.redo()
+                    pdfViewRef?.invalidate()
+                },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 24.dp)
