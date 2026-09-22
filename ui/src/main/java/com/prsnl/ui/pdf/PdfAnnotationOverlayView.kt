@@ -48,6 +48,7 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
     var currentToolMode: CanvasToolMode = CanvasToolMode.PEN
     var selectedColor: Int = Color.BLACK
     var selectedWidth: Float = 4f
+    var eraserRadius: Float = 36f
     var isFingerDrawingEnabled: Boolean = false
     var onCommandIssued: ((pageIndex: Int, Command) -> Unit)? = null
 
@@ -237,7 +238,7 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
         val docY = (screenY - rect.top).coerceIn(0f, rect.height()) * scaleY
 
         val mode = if (currentToolMode == CanvasToolMode.STROKE_ERASER) EraserMode.STROKE_ERASER else EraserMode.PIXEL_ERASER
-        val command = eraserEngine.eraseAt(currentElements, docX, docY, 32f * scaleX, mode)
+        val command = eraserEngine.eraseAt(currentElements, docX, docY, eraserRadius * scaleX, mode)
         if (command != null) {
             when (command) {
                 is Command.DeleteElement -> {

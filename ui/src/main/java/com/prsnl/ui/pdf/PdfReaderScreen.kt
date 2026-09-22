@@ -2,21 +2,33 @@ package com.prsnl.ui.pdf
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -60,7 +72,15 @@ fun PdfReaderScreen(
     val currentTool by viewModel.toolMode.collectAsState()
 
     var selectedColor by remember { mutableIntStateOf(0xFF2D2B28.toInt()) }
-    var selectedWidth by remember { mutableFloatStateOf(6f) }
+    var penThickness by remember { mutableFloatStateOf(4f) }
+    var highlighterThickness by remember { mutableFloatStateOf(28f) }
+    var eraserRadius by remember { mutableFloatStateOf(36f) }
+
+    val activeThickness = when (currentTool) {
+        CanvasToolMode.HIGHLIGHTER -> highlighterThickness
+        CanvasToolMode.STROKE_ERASER, CanvasToolMode.PIXEL_ERASER -> eraserRadius
+        else -> penThickness
+    }
     var isFingerDrawingEnabled by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
     var pdfViewRef by remember { mutableStateOf<com.github.barteksc.pdfviewer.PDFView?>(null) }
@@ -246,7 +266,8 @@ fun PdfReaderScreen(
                                         this.pages = pages
                                         this.currentToolMode = currentTool
                                         this.selectedColor = selectedColor
-                                        this.selectedWidth = selectedWidth
+                                        this.selectedWidth = if (currentTool == CanvasToolMode.HIGHLIGHTER) highlighterThickness else penThickness
+                                        this.eraserRadius = eraserRadius
                                         this.isFingerDrawingEnabled = isFingerDrawingEnabled
                                         this.onCommandIssued = { pageIdx, cmd ->
                                             viewModel.executeCommand(pageIdx, cmd)
@@ -260,7 +281,8 @@ fun PdfReaderScreen(
                                     overlay.pages = pages
                                     overlay.currentToolMode = currentTool
                                     overlay.selectedColor = selectedColor
-                                    overlay.selectedWidth = selectedWidth
+                                    overlay.selectedWidth = if (currentTool == CanvasToolMode.HIGHLIGHTER) highlighterThickness else penThickness
+                                    overlay.eraserRadius = eraserRadius
                                     overlay.isFingerDrawingEnabled = isFingerDrawingEnabled
                                     overlay.onCommandIssued = { pageIdx, cmd ->
                                         viewModel.executeCommand(pageIdx, cmd)
@@ -334,10 +356,25 @@ fun PdfReaderScreen(
             PdfPenTrayToolbar(
                 currentToolMode = currentTool,
                 currentColor = selectedColor,
+                currentThickness = activeThickness,
                 canUndo = canUndo,
                 canRedo = canRedo,
-                onSelectTool = { tool -> viewModel.setToolMode(tool) },
+                onSelectTool = { tool ->
+                    viewModel.setToolMode(tool)
+                    if (tool == CanvasToolMode.HIGHLIGHTER && !BrushPalettes.isColorInPalette(selectedColor, CanvasToolMode.HIGHLIGHTER)) {
+                        selectedColor = BrushPalettes.getDefaultColorForTool(CanvasToolMode.HIGHLIGHTER)
+                    } else if (tool == CanvasToolMode.PEN && !BrushPalettes.isColorInPalette(selectedColor, CanvasToolMode.PEN)) {
+                        selectedColor = BrushPalettes.getDefaultColorForTool(CanvasToolMode.PEN)
+                    }
+                },
                 onSelectColor = { color -> selectedColor = color },
+                onThicknessChange = { newThickness ->
+                    when (currentTool) {
+                        CanvasToolMode.HIGHLIGHTER -> highlighterThickness = newThickness
+                        CanvasToolMode.STROKE_ERASER, CanvasToolMode.PIXEL_ERASER -> eraserRadius = newThickness
+                        else -> penThickness = newThickness
+                    }
+                },
                 onUndo = {
                     viewModel.undo()
                     overlayViewRef?.invalidate()
@@ -350,7 +387,7 @@ fun PdfReaderScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 24.dp)
+                    .padding(bottom = 20.dp)
             )
         }
     }
@@ -360,117 +397,397 @@ fun PdfReaderScreen(
 private fun PdfPenTrayToolbar(
     currentToolMode: CanvasToolMode,
     currentColor: Int,
+    currentThickness: Float,
     canUndo: Boolean,
     canRedo: Boolean,
     onSelectTool: (CanvasToolMode) -> Unit,
     onSelectColor: (Int) -> Unit,
+    onThicknessChange: (Float) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(28.dp),
-        color = Color(0xFF242220).copy(alpha = 0.96f),
-        tonalElevation = 12.dp,
-        modifier = modifier
-            .border(1.5.dp, Color(0xFF47433E), RoundedCornerShape(28.dp))
-            .padding(horizontal = 4.dp)
+    var isThicknessMenuOpen by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        // Floating Thickness Menu Popover
+        AnimatedVisibility(
+            visible = isThicknessMenuOpen,
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 }
         ) {
-            val activeColor = Color(currentColor)
-
-            // Read / Pan Mode (SELECT)
-            IconButton(
-                onClick = { onSelectTool(CanvasToolMode.SELECT) },
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF242220).copy(alpha = 0.98f),
+                tonalElevation = 16.dp,
+                shadowElevation = 8.dp,
+                border = BorderStroke(1.5.dp, Color(0xFF47433E)),
                 modifier = Modifier
-                    .clip(CircleShape)
-                    .background(if (currentToolMode == CanvasToolMode.SELECT) Color(0xFFC88A4B) else Color.Transparent)
+                    .padding(horizontal = 16.dp)
+                    .widthIn(min = 290.dp, max = 360.dp)
             ) {
-                ToolIcon(tool = CanvasToolMode.SELECT, tintColor = if (currentToolMode == CanvasToolMode.SELECT) Color.White else Color(0xFFFAF8F5), size = 18.dp)
-            }
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Header: Title & Value
+                    val toolLabel = when (currentToolMode) {
+                        CanvasToolMode.HIGHLIGHTER -> "Highlighter Thickness"
+                        CanvasToolMode.STROKE_ERASER, CanvasToolMode.PIXEL_ERASER -> "Eraser Size"
+                        CanvasToolMode.PENCIL -> "Pencil Thickness"
+                        else -> "Pen Thickness"
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = toolLabel,
+                            color = Color(0xFFFAF8F5),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFFC88A4B).copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, Color(0xFFC88A4B).copy(alpha = 0.4f))
+                        ) {
+                            Text(
+                                text = "${currentThickness.toInt()} px",
+                                color = Color(0xFFC88A4B),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
 
-            // Pen Tool
-            IconButton(
-                onClick = { onSelectTool(CanvasToolMode.PEN) },
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(if (currentToolMode == CanvasToolMode.PEN) Color(0xFFC88A4B) else Color.Transparent)
-            ) {
-                ToolIcon(tool = CanvasToolMode.PEN, tintColor = if (currentToolMode == CanvasToolMode.PEN) Color.White else Color(0xFFFAF8F5), size = 18.dp)
-            }
+                    // Live Preview Box
+                    val isEraser = currentToolMode == CanvasToolMode.STROKE_ERASER || currentToolMode == CanvasToolMode.PIXEL_ERASER
+                    val previewColor = if (isEraser) Color(0xFF38BDF8) else Color(currentColor)
 
-            // Highlighter Tool
-            IconButton(
-                onClick = { onSelectTool(CanvasToolMode.HIGHLIGHTER) },
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color(0xFFC88A4B) else Color.Transparent)
-            ) {
-                ToolIcon(tool = CanvasToolMode.HIGHLIGHTER, tintColor = if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color.White else Color(0xFFFAF8F5), size = 18.dp)
-            }
-
-            // Eraser Tool
-            IconButton(
-                onClick = { onSelectTool(CanvasToolMode.STROKE_ERASER) },
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(if (currentToolMode == CanvasToolMode.STROKE_ERASER || currentToolMode == CanvasToolMode.PIXEL_ERASER) Color(0xFFEF4444) else Color.Transparent)
-            ) {
-                ToolIcon(tool = CanvasToolMode.STROKE_ERASER, tintColor = Color.White, size = 18.dp)
-            }
-
-            HorizontalDivider(
-                modifier = Modifier
-                    .height(24.dp)
-                    .width(1.dp),
-                color = Color.White.copy(alpha = 0.2f)
-            )
-
-            // Color Swatches
-            val activePalette = if (currentToolMode == CanvasToolMode.HIGHLIGHTER) HIGHLIGHTER_COLORS else PEN_COLORS
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                activePalette.forEach { colorInt ->
                     Box(
                         modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(Color(colorInt))
-                            .border(
-                                width = if (currentColor == colorInt) 2.5.dp else 0.dp,
-                                color = Color.White,
-                                shape = CircleShape
-                            )
-                            .clickable { onSelectColor(colorInt) }
+                            .fillMaxWidth()
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF1E1C1A))
+                            .border(1.dp, Color(0xFF383531), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                            val midY = size.height / 2f
+                            if (isEraser) {
+                                drawCircle(
+                                    color = Color(0xFFFB7185),
+                                    radius = (currentThickness / 2f).coerceIn(4f, size.height * 0.45f),
+                                    center = Offset(size.width / 2f, midY),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                        width = 2.2f,
+                                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 4f), 0f)
+                                    )
+                                )
+                            } else {
+                                drawLine(
+                                    color = previewColor,
+                                    start = Offset(size.width * 0.12f, midY),
+                                    end = Offset(size.width * 0.88f, midY),
+                                    strokeWidth = currentThickness.coerceIn(1f, 36f),
+                                    cap = StrokeCap.Round
+                                )
+                            }
+                        }
+                    }
+
+                    // Preset Chips
+                    val presets = when (currentToolMode) {
+                        CanvasToolMode.HIGHLIGHTER -> listOf(
+                            Pair(18f, "Narrow"),
+                            Pair(28f, "Normal"),
+                            Pair(40f, "Broad"),
+                            Pair(54f, "Chisel")
+                        )
+                        CanvasToolMode.STROKE_ERASER, CanvasToolMode.PIXEL_ERASER -> listOf(
+                            Pair(16f, "Fine"),
+                            Pair(36f, "Normal"),
+                            Pair(60f, "Block")
+                        )
+                        else -> listOf(
+                            Pair(2f, "Fine"),
+                            Pair(4f, "Medium"),
+                            Pair(8f, "Broad"),
+                            Pair(14f, "Marker")
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        presets.forEach { (presetVal, label) ->
+                            val isSelected = Math.abs(currentThickness - presetVal) < 1.5f
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) Color(0xFFC88A4B) else Color(0xFF2E2B27),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) Color(0xFFE5A96A) else Color(0xFF47433E)
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { onThicknessChange(presetVal) }
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 5.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "${presetVal.toInt()}",
+                                        color = if (isSelected) Color.White else Color(0xFFFAF8F5),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.5f),
+                                        fontSize = 9.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Slider
+                    val (rangeMin, rangeMax) = when (currentToolMode) {
+                        CanvasToolMode.HIGHLIGHTER -> Pair(12f, 64f)
+                        CanvasToolMode.STROKE_ERASER, CanvasToolMode.PIXEL_ERASER -> Pair(12f, 76f)
+                        else -> Pair(1f, 20f)
+                    }
+
+                    Slider(
+                        value = currentThickness.coerceIn(rangeMin, rangeMax),
+                        onValueChange = { onThicknessChange(it) },
+                        valueRange = rangeMin..rangeMax,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFFC88A4B),
+                            activeTrackColor = Color(0xFFC88A4B),
+                            inactiveTrackColor = Color(0xFF47433E)
+                        )
                     )
                 }
             }
+        }
 
-            HorizontalDivider(
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Main Bottom Toolbar Surface
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = Color(0xFF242220).copy(alpha = 0.96f),
+            tonalElevation = 12.dp,
+            border = BorderStroke(1.5.dp, Color(0xFF47433E)),
+            modifier = Modifier.padding(horizontal = 8.dp)
+        ) {
+            Row(
                 modifier = Modifier
-                    .height(24.dp)
-                    .width(1.dp),
-                color = Color.White.copy(alpha = 0.2f)
-            )
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // 1. SELECT / Hand Tool
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (currentToolMode == CanvasToolMode.SELECT) Color(0xFFC88A4B) else Color(0xFF2E2B27))
+                        .border(
+                            1.2.dp,
+                            if (currentToolMode == CanvasToolMode.SELECT) Color(0xFFE5A96A) else Color(0xFF47433E),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { onSelectTool(CanvasToolMode.SELECT) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    ToolIcon(
+                        tool = CanvasToolMode.SELECT,
+                        tintColor = if (currentToolMode == CanvasToolMode.SELECT) Color.White else Color(0xFF38BDF8),
+                        size = 20.dp
+                    )
+                }
 
-            // Undo & Redo
-            IconButton(onClick = onUndo, enabled = canUndo) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Undo",
-                    tint = if (canUndo) Color(0xFFFAF8F5) else Color.White.copy(alpha = 0.3f)
-                )
-            }
+                // 2. PEN Tool
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (currentToolMode == CanvasToolMode.PEN) Color(0xFFC88A4B) else Color(0xFF2E2B27))
+                        .border(
+                            1.2.dp,
+                            if (currentToolMode == CanvasToolMode.PEN) Color(0xFFE5A96A) else Color(0xFF47433E),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { onSelectTool(CanvasToolMode.PEN) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    ToolIcon(
+                        tool = CanvasToolMode.PEN,
+                        tintColor = if (currentToolMode == CanvasToolMode.PEN) Color(currentColor) else Color(0xFFFAF8F5),
+                        size = 20.dp
+                    )
+                }
 
-            IconButton(onClick = onRedo, enabled = canRedo) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Redo",
-                    tint = if (canRedo) Color(0xFFFAF8F5) else Color.White.copy(alpha = 0.3f)
+                // 3. HIGHLIGHTER Tool
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color(0xFFC88A4B) else Color(0xFF2E2B27))
+                        .border(
+                            1.2.dp,
+                            if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color(0xFFE5A96A) else Color(0xFF47433E),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { onSelectTool(CanvasToolMode.HIGHLIGHTER) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    ToolIcon(
+                        tool = CanvasToolMode.HIGHLIGHTER,
+                        tintColor = if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color(currentColor) else Color(0xFFFACC15),
+                        size = 20.dp
+                    )
+                }
+
+                // 4. ERASER Tool
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (currentToolMode == CanvasToolMode.STROKE_ERASER || currentToolMode == CanvasToolMode.PIXEL_ERASER) Color(0xFFEF4444) else Color(0xFF2E2B27))
+                        .border(
+                            1.2.dp,
+                            if (currentToolMode == CanvasToolMode.STROKE_ERASER || currentToolMode == CanvasToolMode.PIXEL_ERASER) Color(0xFFFCA5A5) else Color(0xFF47433E),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { onSelectTool(CanvasToolMode.STROKE_ERASER) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    ToolIcon(
+                        tool = CanvasToolMode.STROKE_ERASER,
+                        tintColor = Color(0xFF38BDF8),
+                        size = 20.dp
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier
+                        .height(24.dp)
+                        .width(1.dp),
+                    color = Color.White.copy(alpha = 0.2f)
                 )
+
+                // Thickness Pill Button
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isThicknessMenuOpen) Color(0xFFC88A4B).copy(alpha = 0.25f) else Color(0xFF2E2B27),
+                    border = BorderStroke(
+                        1.2.dp,
+                        if (isThicknessMenuOpen) Color(0xFFC88A4B) else Color(0xFF47433E)
+                    ),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { isThicknessMenuOpen = !isThicknessMenuOpen }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val isEraser = currentToolMode == CanvasToolMode.STROKE_ERASER || currentToolMode == CanvasToolMode.PIXEL_ERASER
+                        val dotColor = if (isEraser) Color(0xFF38BDF8) else Color(currentColor)
+
+                        Box(
+                            modifier = Modifier
+                                .size(maxOf(6.dp, minOf(16.dp, (currentThickness * 0.4f).dp)))
+                                .clip(CircleShape)
+                                .background(dotColor)
+                        )
+                        Text(
+                            text = "${currentThickness.toInt()}px",
+                            color = Color(0xFFFAF8F5),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                // Color Swatches (Shown when not in Eraser / Select mode)
+                if (currentToolMode != CanvasToolMode.STROKE_ERASER &&
+                    currentToolMode != CanvasToolMode.PIXEL_ERASER &&
+                    currentToolMode != CanvasToolMode.SELECT
+                ) {
+                    HorizontalDivider(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .width(1.dp),
+                        color = Color.White.copy(alpha = 0.2f)
+                    )
+
+                    val activePalette = if (currentToolMode == CanvasToolMode.HIGHLIGHTER) HIGHLIGHTER_COLORS else PEN_COLORS
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        activePalette.forEach { colorInt ->
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(colorInt))
+                                    .border(
+                                        width = if (currentColor == colorInt) 2.5.dp else 0.dp,
+                                        color = Color.White,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { onSelectColor(colorInt) }
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier
+                        .height(24.dp)
+                        .width(1.dp),
+                    color = Color.White.copy(alpha = 0.2f)
+                )
+
+                // Undo & Redo Actions
+                IconButton(
+                    onClick = onUndo,
+                    enabled = canUndo,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Undo,
+                        contentDescription = "Undo",
+                        tint = if (canUndo) Color(0xFFFAF8F5) else Color.White.copy(alpha = 0.25f)
+                    )
+                }
+
+                IconButton(
+                    onClick = onRedo,
+                    enabled = canRedo,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Redo,
+                        contentDescription = "Redo",
+                        tint = if (canRedo) Color(0xFFFAF8F5) else Color.White.copy(alpha = 0.25f)
+                    )
+                }
             }
         }
     }

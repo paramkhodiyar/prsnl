@@ -22,7 +22,7 @@ fun ToolIcon(
     tintColor: Color,
     modifier: Modifier = Modifier,
     size: Dp = 22.dp,
-    neutralColor: Color = Color(0xFF64748B) // Slate gray for barrels
+    neutralColor: Color = Color(0xFFE2E8F0) // High-visibility bright platinum/silver
 ) {
     Canvas(modifier = modifier.size(size)) {
         val w = this.size.width
@@ -30,51 +30,49 @@ fun ToolIcon(
 
         when (tool) {
             CanvasToolMode.PEN -> {
-                // Ballpoint / Fountain Pen silhouette
-                // Barrel: upper-right to mid-lower-left
+                // Ballpoint / Fountain Pen silhouette with luminous metallic barrel
                 val barrelPath = Path().apply {
-                    moveTo(w * 0.75f, h * 0.12f)
-                    lineTo(w * 0.88f, h * 0.25f)
-                    lineTo(w * 0.42f, h * 0.71f)
-                    lineTo(w * 0.29f, h * 0.58f)
+                    moveTo(w * 0.76f, h * 0.10f)
+                    lineTo(w * 0.90f, h * 0.24f)
+                    lineTo(w * 0.44f, h * 0.70f)
+                    lineTo(w * 0.30f, h * 0.56f)
                     close()
                 }
                 drawPath(barrelPath, color = neutralColor, style = Fill)
-                drawPath(barrelPath, color = neutralColor.copy(alpha = 0.5f), style = Stroke(width = 1.2f))
+                drawPath(barrelPath, color = Color(0xFF0F172A).copy(alpha = 0.6f), style = Stroke(width = 1.2f))
 
-                // Metallic collar band
+                // Polished gold metallic collar band
                 drawLine(
-                    color = Color(0xFFCBD5E1),
-                    start = Offset(w * 0.29f, h * 0.58f),
-                    end = Offset(w * 0.42f, h * 0.71f),
-                    strokeWidth = 2.2f,
+                    color = Color(0xFFD97706),
+                    start = Offset(w * 0.30f, h * 0.56f),
+                    end = Offset(w * 0.44f, h * 0.70f),
+                    strokeWidth = 2.4f,
                     cap = StrokeCap.Round
                 )
 
-                // Pen Nib (Last ~20% of the icon shape, colored dynamically with tintColor)
+                // Pen Nib: Fountain shape filled with dynamic ink tintColor
                 val nibPath = Path().apply {
-                    moveTo(w * 0.29f, h * 0.58f)
-                    lineTo(w * 0.42f, h * 0.71f)
-                    lineTo(w * 0.18f, h * 0.82f)
-                    lineTo(w * 0.10f, h * 0.90f) // Sharp fountain point
-                    lineTo(w * 0.18f, h * 0.82f)
+                    moveTo(w * 0.30f, h * 0.56f)
+                    lineTo(w * 0.44f, h * 0.70f)
+                    lineTo(w * 0.22f, h * 0.82f)
+                    lineTo(w * 0.08f, h * 0.92f) // Sharp fountain point
+                    lineTo(w * 0.18f, h * 0.78f)
                     close()
                 }
                 drawPath(nibPath, color = tintColor, style = Fill)
-                drawPath(nibPath, color = Color(0xFF334155), style = Stroke(width = 1.2f, join = StrokeJoin.Round))
+                drawPath(nibPath, color = Color(0xFF0F172A), style = Stroke(width = 1.2f, join = StrokeJoin.Round))
 
-                // Fine ink breather hole / split on nib
+                // Ink breather line on nib
                 drawLine(
-                    color = Color.White.copy(alpha = 0.8f),
-                    start = Offset(w * 0.23f, h * 0.77f),
+                    color = Color.White.copy(alpha = 0.9f),
+                    start = Offset(w * 0.24f, h * 0.74f),
                     end = Offset(w * 0.12f, h * 0.88f),
-                    strokeWidth = 1f
+                    strokeWidth = 1.2f
                 )
             }
 
             CanvasToolMode.PENCIL -> {
-                // Tilted wooden pencil with visible graphite tip
-                // Upper body: Hexagonal yellow/neutral barrel
+                // Tilted wooden pencil with distinct hexagonal facets & sharp lead tip
                 val pencilBody = Path().apply {
                     moveTo(w * 0.72f, h * 0.10f)
                     lineTo(w * 0.90f, h * 0.28f)
@@ -83,17 +81,17 @@ fun ToolIcon(
                     close()
                 }
                 drawPath(pencilBody, color = Color(0xFFF59E0B), style = Fill)
-                drawPath(pencilBody, color = neutralColor, style = Stroke(width = 1.2f))
+                drawPath(pencilBody, color = Color(0xFF0F172A).copy(alpha = 0.5f), style = Stroke(width = 1.2f))
 
-                // Inner facet line
+                // Pencil facet highlight line
                 drawLine(
-                    color = Color(0xFFD97706),
+                    color = Color(0xFFFDE68A),
                     start = Offset(w * 0.81f, h * 0.19f),
                     end = Offset(w * 0.37f, h * 0.63f),
-                    strokeWidth = 1.2f
+                    strokeWidth = 1.4f
                 )
 
-                // Wooden sharpened collar
+                // Sharpened natural wood collar
                 val woodCollar = Path().apply {
                     moveTo(w * 0.28f, h * 0.54f)
                     lineTo(w * 0.46f, h * 0.72f)
@@ -101,22 +99,22 @@ fun ToolIcon(
                     lineTo(w * 0.16f, h * 0.84f)
                     close()
                 }
-                drawPath(woodCollar, color = Color(0xFFFDE68A), style = Fill)
+                drawPath(woodCollar, color = Color(0xFFFEF3C7), style = Fill)
+                drawPath(woodCollar, color = Color(0xFFB45309).copy(alpha = 0.7f), style = Stroke(width = 1f))
 
-                // Graphite / Lead Tip (colored with tintColor)
+                // Graphite / Lead tip with tintColor accent
                 val leadTip = Path().apply {
                     moveTo(w * 0.20f, h * 0.80f)
-                    lineTo(w * 0.10f, h * 0.90f) // Sharp point
+                    lineTo(w * 0.08f, h * 0.92f)
                     lineTo(w * 0.16f, h * 0.84f)
                     close()
                 }
                 drawPath(leadTip, color = tintColor, style = Fill)
-                drawPath(leadTip, color = Color(0xFF1E293B), style = Stroke(width = 1f))
+                drawPath(leadTip, color = Color(0xFF0F172A), style = Stroke(width = 1.2f))
             }
 
             CanvasToolMode.HIGHLIGHTER -> {
-                // Chisel-tip marker body
-                // Rectangular wide marker barrel
+                // Wide chisel-tip marker with bright barrel & fluorescent neon chisel cut
                 val barrel = Path().apply {
                     moveTo(w * 0.65f, h * 0.12f)
                     lineTo(w * 0.88f, h * 0.35f)
@@ -124,138 +122,162 @@ fun ToolIcon(
                     lineTo(w * 0.23f, h * 0.54f)
                     close()
                 }
-                drawPath(barrel, color = neutralColor, style = Fill)
-                drawPath(barrel, color = Color(0xFF334155), style = Stroke(width = 1.3f))
+                drawPath(barrel, color = Color(0xFFF1F5F9), style = Fill)
+                drawPath(barrel, color = Color(0xFF0F172A).copy(alpha = 0.6f), style = Stroke(width = 1.3f))
 
-                // Cap grip ring
+                // High-contrast grip ring
                 drawLine(
-                    color = Color(0xFF94A3B8),
-                    start = Offset(w * 0.30f, h * 0.61f),
-                    end = Offset(w * 0.53f, h * 0.84f),
-                    strokeWidth = 2.5f
+                    color = Color(0xFF334155),
+                    start = Offset(w * 0.28f, h * 0.59f),
+                    end = Offset(w * 0.51f, h * 0.82f),
+                    strokeWidth = 3f,
+                    cap = StrokeCap.Round
                 )
 
-                // Chisel Tip (Slanted rectangular cut, colored dynamically with tintColor)
+                // Fluorescent Chisel Tip: Angled broad rectangular cut
                 val chiselTip = Path().apply {
                     moveTo(w * 0.23f, h * 0.54f)
-                    lineTo(w * 0.35f, h * 0.66f)
-                    lineTo(w * 0.20f, h * 0.88f)
-                    lineTo(w * 0.10f, h * 0.85f)
+                    lineTo(w * 0.38f, h * 0.69f)
+                    lineTo(w * 0.22f, h * 0.92f)
+                    lineTo(w * 0.08f, h * 0.82f)
                     close()
                 }
                 drawPath(chiselTip, color = tintColor, style = Fill)
-                drawPath(chiselTip, color = tintColor.copy(alpha = 0.7f), style = Stroke(width = 1.2f, join = StrokeJoin.Miter))
+                drawPath(chiselTip, color = Color(0xFF0F172A), style = Stroke(width = 1.4f, join = StrokeJoin.Miter))
+
+                // Highlight shine along chisel face
+                drawLine(
+                    color = Color.White.copy(alpha = 0.8f),
+                    start = Offset(w * 0.22f, h * 0.65f),
+                    end = Offset(w * 0.14f, h * 0.84f),
+                    strokeWidth = 1.5f,
+                    cap = StrokeCap.Round
+                )
             }
 
             CanvasToolMode.STROKE_ERASER, CanvasToolMode.PIXEL_ERASER -> {
-                // Classic block eraser
+                // Classic block eraser with bright pink beveled head & cyan/blue paper sleeve
                 val eraserTop = Path().apply {
-                    moveTo(w * 0.30f, h * 0.18f)
-                    lineTo(w * 0.75f, h * 0.18f)
+                    moveTo(w * 0.28f, h * 0.16f)
+                    lineTo(w * 0.74f, h * 0.16f)
                     lineTo(w * 0.88f, h * 0.38f)
-                    lineTo(w * 0.43f, h * 0.38f)
+                    lineTo(w * 0.42f, h * 0.38f)
                     close()
                 }
-                drawPath(eraserTop, color = Color(0xFFFDA4AF), style = Fill) // Pink eraser head
+                drawPath(eraserTop, color = Color(0xFFFB7185), style = Fill) // Vivid coral pink
+                drawPath(eraserTop, color = Color(0xFFBE123C), style = Stroke(width = 1.2f))
 
+                // Paper sleeve band
                 val eraserBody = Path().apply {
-                    moveTo(w * 0.43f, h * 0.38f)
+                    moveTo(w * 0.42f, h * 0.38f)
                     lineTo(w * 0.88f, h * 0.38f)
-                    lineTo(w * 0.72f, h * 0.82f)
-                    lineTo(w * 0.27f, h * 0.82f)
+                    lineTo(w * 0.72f, h * 0.80f)
+                    lineTo(w * 0.26f, h * 0.80f)
                     close()
                 }
-                drawPath(eraserBody, color = Color(0xFF38BDF8), style = Fill) // Blue sleeve band
+                drawPath(eraserBody, color = Color(0xFF38BDF8), style = Fill) // Sky cyan
                 drawPath(eraserBody, color = Color(0xFF0284C7), style = Stroke(width = 1.2f))
 
-                // Eraser bottom rubber
+                // Crisp white brand strip across sleeve
+                drawLine(
+                    color = Color.White,
+                    start = Offset(w * 0.34f, h * 0.58f),
+                    end = Offset(w * 0.80f, h * 0.58f),
+                    strokeWidth = 2.4f
+                )
+
+                // Eraser bottom base
                 val eraserBottom = Path().apply {
-                    moveTo(w * 0.27f, h * 0.82f)
-                    lineTo(w * 0.72f, h * 0.82f)
+                    moveTo(w * 0.26f, h * 0.80f)
+                    lineTo(w * 0.72f, h * 0.80f)
                     lineTo(w * 0.64f, h * 0.92f)
-                    lineTo(w * 0.19f, h * 0.92f)
+                    lineTo(w * 0.18f, h * 0.92f)
                     close()
                 }
                 drawPath(eraserBottom, color = Color(0xFFFDA4AF), style = Fill)
-                drawPath(eraserBottom, color = Color(0xFFE11D48), style = Stroke(width = 1.2f))
+                drawPath(eraserBottom, color = Color(0xFFBE123C), style = Stroke(width = 1.2f))
             }
 
             CanvasToolMode.LASSO -> {
-                // Dashed lasso rope loop
+                // High-visibility dashed lasso loop in golden amber with rope knot
                 val lassoPath = Path().apply {
-                    moveTo(w * 0.5f, h * 0.18f)
-                    cubicTo(w * 0.85f, h * 0.15f, w * 0.92f, h * 0.65f, w * 0.55f, h * 0.72f)
-                    cubicTo(w * 0.25f, h * 0.78f, w * 0.12f, h * 0.45f, w * 0.30f, h * 0.25f)
+                    moveTo(w * 0.5f, h * 0.16f)
+                    cubicTo(w * 0.88f, h * 0.14f, w * 0.94f, h * 0.66f, w * 0.55f, h * 0.74f)
+                    cubicTo(w * 0.22f, h * 0.80f, w * 0.10f, h * 0.44f, w * 0.30f, h * 0.24f)
                     close()
                 }
                 drawPath(
                     lassoPath,
-                    color = neutralColor,
+                    color = Color(0xFFFBBF24),
                     style = Stroke(
-                        width = 1.8f,
-                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(4f, 3f), 0f)
+                        width = 2.2f,
+                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5f, 3f), 0f)
                     )
                 )
 
-                // Lasso loop knot & trailing tail
-                drawCircle(color = Color(0xFFD97706), radius = 2.5f, center = Offset(w * 0.55f, h * 0.72f))
+                // Lasso loop knot & trailing cord
+                drawCircle(color = Color(0xFFF59E0B), radius = 3f, center = Offset(w * 0.55f, h * 0.74f))
                 val tailPath = Path().apply {
-                    moveTo(w * 0.55f, h * 0.72f)
-                    quadraticTo(w * 0.70f, h * 0.85f, w * 0.82f, h * 0.88f)
+                    moveTo(w * 0.55f, h * 0.74f)
+                    quadraticTo(w * 0.72f, h * 0.86f, w * 0.84f, h * 0.90f)
                 }
-                drawPath(tailPath, color = Color(0xFFD97706), style = Stroke(width = 2f, cap = StrokeCap.Round))
+                drawPath(tailPath, color = Color(0xFFF59E0B), style = Stroke(width = 2.2f, cap = StrokeCap.Round))
             }
 
             CanvasToolMode.SHAPE_PICKER -> {
-                // Geometric shapes icon: Circle + Square
+                // Crisp geometric figures: Circle + Rounded Square with bright contrasting edges
                 drawCircle(
-                    color = neutralColor,
-                    radius = w * 0.26f,
+                    color = Color(0xFF38BDF8),
+                    radius = w * 0.28f,
                     center = Offset(w * 0.40f, h * 0.40f),
-                    style = Stroke(width = 1.8f)
+                    style = Stroke(width = 2.2f)
                 )
                 drawRect(
-                    color = Color(0xFFC88A4B),
-                    topLeft = Offset(w * 0.35f, h * 0.35f),
-                    size = Size(w * 0.48f, h * 0.48f),
-                    style = Stroke(width = 1.8f)
+                    color = Color(0xFFF59E0B),
+                    topLeft = Offset(w * 0.36f, h * 0.36f),
+                    size = Size(w * 0.50f, h * 0.50f),
+                    style = Stroke(width = 2.2f)
                 )
             }
 
             CanvasToolMode.TEXT -> {
-                // Typography 'T' icon
+                // Crisp typography 'T' icon with prominent serifs
                 val tPath = Path().apply {
-                    moveTo(w * 0.22f, h * 0.22f)
-                    lineTo(w * 0.78f, h * 0.22f)
-                    lineTo(w * 0.78f, h * 0.36f)
-                    lineTo(w * 0.57f, h * 0.36f)
-                    lineTo(w * 0.57f, h * 0.78f)
-                    lineTo(w * 0.65f, h * 0.78f)
-                    lineTo(w * 0.65f, h * 0.88f)
-                    lineTo(w * 0.35f, h * 0.88f)
-                    lineTo(w * 0.35f, h * 0.78f)
-                    lineTo(w * 0.43f, h * 0.78f)
-                    lineTo(w * 0.43f, h * 0.36f)
-                    lineTo(w * 0.22f, h * 0.36f)
+                    moveTo(w * 0.20f, h * 0.20f)
+                    lineTo(w * 0.80f, h * 0.20f)
+                    lineTo(w * 0.80f, h * 0.35f)
+                    lineTo(w * 0.58f, h * 0.35f)
+                    lineTo(w * 0.58f, h * 0.78f)
+                    lineTo(w * 0.68f, h * 0.78f)
+                    lineTo(w * 0.68f, h * 0.90f)
+                    lineTo(w * 0.32f, h * 0.90f)
+                    lineTo(w * 0.32f, h * 0.78f)
+                    lineTo(w * 0.42f, h * 0.78f)
+                    lineTo(w * 0.42f, h * 0.35f)
+                    lineTo(w * 0.20f, h * 0.35f)
                     close()
                 }
-                drawPath(tPath, color = neutralColor, style = Fill)
+                drawPath(tPath, color = Color(0xFFF8FAFC), style = Fill)
+                drawPath(tPath, color = Color(0xFF0F172A).copy(alpha = 0.5f), style = Stroke(width = 1.2f))
             }
 
             CanvasToolMode.SELECT -> {
-                // Selection pointer / pan hand
+                // Crisp modern pointer cursor: pure white fill with dark outline
                 val arrowPath = Path().apply {
-                    moveTo(w * 0.22f, h * 0.15f)
-                    lineTo(w * 0.22f, h * 0.82f)
-                    lineTo(w * 0.42f, h * 0.62f)
-                    lineTo(w * 0.60f, h * 0.85f)
-                    lineTo(w * 0.72f, h * 0.76f)
-                    lineTo(w * 0.54f, h * 0.54f)
-                    lineTo(w * 0.78f, h * 0.54f)
+                    moveTo(w * 0.20f, h * 0.12f)
+                    lineTo(w * 0.20f, h * 0.85f)
+                    lineTo(w * 0.44f, h * 0.63f)
+                    lineTo(w * 0.64f, h * 0.90f)
+                    lineTo(w * 0.76f, h * 0.80f)
+                    lineTo(w * 0.56f, h * 0.54f)
+                    lineTo(w * 0.82f, h * 0.54f)
                     close()
                 }
-                drawPath(arrowPath, color = neutralColor, style = Fill)
-                drawPath(arrowPath, color = Color.White, style = Stroke(width = 1.5f))
+                drawPath(arrowPath, color = Color.White, style = Fill)
+                drawPath(arrowPath, color = Color(0xFF0F172A), style = Stroke(width = 1.8f, join = StrokeJoin.Round))
+
+                // Bright sky-blue accent dot inside the pointer
+                drawCircle(color = Color(0xFF38BDF8), radius = 2.2f, center = Offset(w * 0.36f, h * 0.42f))
             }
         }
     }
@@ -271,48 +293,42 @@ fun GraphToolIcon(
         val w = this.size.width
         val h = this.size.height
 
-        // Coordinate axes
+        // Coordinate axes with high-visibility bright line
         drawLine(
-            color = Color(0xFF64748B),
-            start = Offset(w * 0.18f, h * 0.82f),
-            end = Offset(w * 0.88f, h * 0.82f),
-            strokeWidth = 2f,
+            color = Color(0xFFE2E8F0),
+            start = Offset(w * 0.16f, h * 0.84f),
+            end = Offset(w * 0.88f, h * 0.84f),
+            strokeWidth = 2.2f,
             cap = StrokeCap.Round
         )
         drawLine(
-            color = Color(0xFF64748B),
-            start = Offset(w * 0.18f, h * 0.82f),
-            end = Offset(w * 0.18f, h * 0.14f),
-            strokeWidth = 2f,
+            color = Color(0xFFE2E8F0),
+            start = Offset(w * 0.16f, h * 0.84f),
+            end = Offset(w * 0.16f, h * 0.14f),
+            strokeWidth = 2.2f,
             cap = StrokeCap.Round
         )
 
-        // Arrowheads
-        val arrowX = Path().apply {
-            moveTo(w * 0.88f, h * 0.82f)
-            lineTo(w * 0.78f, h * 0.74f)
-            moveTo(w * 0.88f, h * 0.82f)
-            lineTo(w * 0.78f, h * 0.90f)
+        // Axis arrow tips
+        val xArrow = Path().apply {
+            moveTo(w * 0.88f, h * 0.79f)
+            lineTo(w * 0.96f, h * 0.84f)
+            lineTo(w * 0.88f, h * 0.89f)
         }
-        drawPath(arrowX, color = Color(0xFF64748B), style = Stroke(width = 1.8f, cap = StrokeCap.Round))
+        drawPath(xArrow, color = Color(0xFFE2E8F0), style = Stroke(width = 2.2f, cap = StrokeCap.Round))
 
-        val arrowY = Path().apply {
-            moveTo(w * 0.18f, h * 0.14f)
-            lineTo(w * 0.10f, h * 0.24f)
-            moveTo(w * 0.18f, h * 0.14f)
-            lineTo(w * 0.26f, h * 0.24f)
+        val yArrow = Path().apply {
+            moveTo(w * 0.11f, h * 0.20f)
+            lineTo(w * 0.16f, h * 0.10f)
+            lineTo(w * 0.21f, h * 0.20f)
         }
-        drawPath(arrowY, color = Color(0xFF64748B), style = Stroke(width = 1.8f, cap = StrokeCap.Round))
+        drawPath(yArrow, color = Color(0xFFE2E8F0), style = Stroke(width = 2.2f, cap = StrokeCap.Round))
 
-        // Vibrant intersecting function curve (parabola / curve in tintColor)
-        val curvePath = Path().apply {
-            moveTo(w * 0.24f, h * 0.76f)
-            cubicTo(
-                w * 0.40f, h * 0.74f,
-                w * 0.50f, h * 0.35f,
-                w * 0.80f, h * 0.28f
-            )
+        // Parabolic curve with vibrant gold highlight
+        val curve = Path().apply {
+            moveTo(w * 0.22f, h * 0.78f)
+            quadraticTo(w * 0.50f, h * 0.24f, w * 0.84f, h * 0.70f)
         }
-        drawPath(curvePath, color = tintColor, style = Stroke(width = 2.2f, cap = StrokeCap.Round))
+        drawPath(curve, color = tintColor, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
     }
 }
