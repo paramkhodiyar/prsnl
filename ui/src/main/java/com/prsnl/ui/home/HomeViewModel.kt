@@ -67,21 +67,6 @@ class HomeViewModel(
             initialValue = emptyList()
         )
 
-    init {
-        viewModelScope.launch {
-            val existingFolders = folderRepository.getAllFolders().first()
-            if (existingFolders.none { it.name.equals("Personal", ignoreCase = true) }) {
-                val defaultFolder = Folder(
-                    id = UUID.randomUUID().toString(),
-                    name = "Personal",
-                    createdAt = System.currentTimeMillis(),
-                    color = 0xFFC85A32.toInt(),
-                    iconName = "PERSONAL"
-                )
-                folderRepository.saveFolder(defaultFolder)
-            }
-        }
-    }
 
     fun createFolder(name: String, color: Int = 0xFF8B5E3C.toInt(), iconName: String = "FOLDER"): Folder {
         val trimmed = name.trim().ifBlank { "Untitled Folder" }

@@ -512,11 +512,14 @@ fun HomeScreen(
                     userProfileManager.setWelcomeCompleted(true)
                     showWelcomeModal = false
                 },
-                onComplete = { name, initialFolder ->
+                onComplete = { name, initialFolder, folderColor ->
                     userProfileManager.saveUserProfile(name, completedWelcome = true)
                     showWelcomeModal = false
                     if (!initialFolder.isNullOrBlank()) {
-                        viewModel.createFolder(initialFolder)
+                        viewModel.createFolder(
+                            name = initialFolder,
+                            color = folderColor ?: 0xFF8B5E3C.toInt()
+                        )
                     }
                 }
             )

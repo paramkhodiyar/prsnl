@@ -98,9 +98,10 @@ fun PageEditorScreen(
     val isSaving by viewModel.isSaving.collectAsState()
     val context = LocalContext.current
 
-    var selectedColor by remember { mutableIntStateOf(AndroidColor.parseColor("#2D2B28")) }
+    var selectedColor by remember { mutableIntStateOf(viewModel.getColorForTool(toolMode)) }
     var selectedWidth by remember { mutableFloatStateOf(viewModel.getWidthForTool(toolMode)) }
     LaunchedEffect(toolMode) {
+        selectedColor = viewModel.getColorForTool(toolMode)
         selectedWidth = viewModel.getWidthForTool(toolMode)
     }
     var eraserRadius by remember { mutableFloatStateOf(32f) }
@@ -256,12 +257,13 @@ fun PageEditorScreen(
                         onToolModeChange = { newMode ->
                             viewModel.setToolMode(newMode)
                             selectedWidth = viewModel.getWidthForTool(newMode)
-                            if (newMode == CanvasToolMode.HIGHLIGHTER && !com.prsnl.ui.common.BrushPalettes.isColorInPalette(selectedColor, newMode)) {
-                                selectedColor = com.prsnl.ui.common.BrushPalettes.getDefaultColorForTool(newMode)
-                            }
+                            selectedColor = viewModel.getColorForTool(newMode)
                         },
                         selectedColor = selectedColor,
-                        onColorSelect = { selectedColor = it },
+                        onColorSelect = {
+                            selectedColor = it
+                            viewModel.setColorForTool(toolMode, it)
+                        },
                         selectedWidth = selectedWidth,
                         onWidthChange = {
                             selectedWidth = it
@@ -434,9 +436,7 @@ fun PageEditorScreen(
                     onToolModeChange = { newMode ->
                         viewModel.setToolMode(newMode)
                         selectedWidth = viewModel.getWidthForTool(newMode)
-                        if (newMode == CanvasToolMode.HIGHLIGHTER && !com.prsnl.ui.common.BrushPalettes.isColorInPalette(selectedColor, newMode)) {
-                            selectedColor = com.prsnl.ui.common.BrushPalettes.getDefaultColorForTool(newMode)
-                        }
+                        selectedColor = viewModel.getColorForTool(newMode)
                     },
                     selectedColor = selectedColor,
                     canUndo = canUndo,
@@ -525,6 +525,7 @@ fun PageEditorScreen(
                 initialColor = selectedColor,
                 onColorSelected = {
                     selectedColor = it
+                    viewModel.setColorForTool(toolMode, it)
                     showColorWheel = false
                 },
                 onDismiss = { showColorWheel = false }

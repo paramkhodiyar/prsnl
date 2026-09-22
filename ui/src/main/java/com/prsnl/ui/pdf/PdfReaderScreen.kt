@@ -71,7 +71,9 @@ fun PdfReaderScreen(
     val canRedo by viewModel.canRedo.collectAsState()
     val currentTool by viewModel.toolMode.collectAsState()
 
-    var selectedColor by remember { mutableIntStateOf(0xFF2D2B28.toInt()) }
+    var penColor by remember { mutableIntStateOf(0xFF1E1E1E.toInt()) }
+    var highlighterColor by remember { mutableIntStateOf(0x88FFEE00.toInt()) }
+    val currentColor = if (currentTool == CanvasToolMode.HIGHLIGHTER) highlighterColor else penColor
     var penThickness by remember { mutableFloatStateOf(4f) }
     var highlighterThickness by remember { mutableFloatStateOf(28f) }
     var eraserRadius by remember { mutableFloatStateOf(36f) }
@@ -265,7 +267,7 @@ fun PdfReaderScreen(
                                         this.pdfView = pdfViewRef
                                         this.pages = pages
                                         this.currentToolMode = currentTool
-                                        this.selectedColor = selectedColor
+                                        this.selectedColor = currentColor
                                         this.selectedWidth = if (currentTool == CanvasToolMode.HIGHLIGHTER) highlighterThickness else penThickness
                                         this.eraserRadius = eraserRadius
                                         this.isFingerDrawingEnabled = isFingerDrawingEnabled
@@ -280,7 +282,7 @@ fun PdfReaderScreen(
                                     overlay.pdfView = pdfViewRef
                                     overlay.pages = pages
                                     overlay.currentToolMode = currentTool
-                                    overlay.selectedColor = selectedColor
+                                    overlay.selectedColor = currentColor
                                     overlay.selectedWidth = if (currentTool == CanvasToolMode.HIGHLIGHTER) highlighterThickness else penThickness
                                     overlay.eraserRadius = eraserRadius
                                     overlay.isFingerDrawingEnabled = isFingerDrawingEnabled
@@ -355,19 +357,22 @@ fun PdfReaderScreen(
             // Floating Quick Annotation Toolbar at bottom, styled to app theme
             PdfPenTrayToolbar(
                 currentToolMode = currentTool,
-                currentColor = selectedColor,
+                currentColor = currentColor,
+                penColor = penColor,
+                highlighterColor = highlighterColor,
                 currentThickness = activeThickness,
                 canUndo = canUndo,
                 canRedo = canRedo,
                 onSelectTool = { tool ->
                     viewModel.setToolMode(tool)
-                    if (tool == CanvasToolMode.HIGHLIGHTER && !BrushPalettes.isColorInPalette(selectedColor, CanvasToolMode.HIGHLIGHTER)) {
-                        selectedColor = BrushPalettes.getDefaultColorForTool(CanvasToolMode.HIGHLIGHTER)
-                    } else if (tool == CanvasToolMode.PEN && !BrushPalettes.isColorInPalette(selectedColor, CanvasToolMode.PEN)) {
-                        selectedColor = BrushPalettes.getDefaultColorForTool(CanvasToolMode.PEN)
+                },
+                onSelectColor = { color ->
+                    if (currentTool == CanvasToolMode.HIGHLIGHTER) {
+                        highlighterColor = color
+                    } else {
+                        penColor = color
                     }
                 },
-                onSelectColor = { color -> selectedColor = color },
                 onThicknessChange = { newThickness ->
                     when (currentTool) {
                         CanvasToolMode.HIGHLIGHTER -> highlighterThickness = newThickness
@@ -397,6 +402,8 @@ fun PdfReaderScreen(
 private fun PdfPenTrayToolbar(
     currentToolMode: CanvasToolMode,
     currentColor: Int,
+    penColor: Int = 0xFF1E1E1E.toInt(),
+    highlighterColor: Int = 0x88FFEE00.toInt(),
     currentThickness: Float,
     canUndo: Boolean,
     canRedo: Boolean,
@@ -637,7 +644,7 @@ private fun PdfPenTrayToolbar(
                 ) {
                     ToolIcon(
                         tool = CanvasToolMode.PEN,
-                        tintColor = if (currentToolMode == CanvasToolMode.PEN) Color(currentColor) else Color(0xFFFAF8F5),
+                        tintColor = if (currentToolMode == CanvasToolMode.PEN) Color(penColor) else Color(0xFFFAF8F5),
                         size = 20.dp
                     )
                 }
@@ -658,7 +665,7 @@ private fun PdfPenTrayToolbar(
                 ) {
                     ToolIcon(
                         tool = CanvasToolMode.HIGHLIGHTER,
-                        tintColor = if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color(currentColor) else Color(0xFFFACC15),
+                        tintColor = if (currentToolMode == CanvasToolMode.HIGHLIGHTER) Color(highlighterColor).copy(alpha = 1f) else Color(0xFFFACC15),
                         size = 20.dp
                     )
                 }

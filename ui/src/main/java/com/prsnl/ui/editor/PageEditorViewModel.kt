@@ -60,6 +60,15 @@ class PageEditorViewModel(
     private val _highlighterWidth = MutableStateFlow(18f)
     val highlighterWidth: StateFlow<Float> = _highlighterWidth.asStateFlow()
 
+    private val _penColor = MutableStateFlow(0xFF1E1E1E.toInt())
+    val penColor: StateFlow<Int> = _penColor.asStateFlow()
+
+    private val _pencilColor = MutableStateFlow(0xFF2D2B28.toInt())
+    val pencilColor: StateFlow<Int> = _pencilColor.asStateFlow()
+
+    private val _highlighterColor = MutableStateFlow(0x88FFEE00.toInt())
+    val highlighterColor: StateFlow<Int> = _highlighterColor.asStateFlow()
+
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
@@ -326,6 +335,24 @@ class PageEditorViewModel(
             CanvasToolMode.PENCIL -> _pencilWidth.value
             CanvasToolMode.HIGHLIGHTER -> _highlighterWidth.value
             else -> _penWidth.value
+        }
+    }
+
+    fun setColorForTool(mode: CanvasToolMode, color: Int) {
+        when (mode) {
+            CanvasToolMode.PEN -> _penColor.value = color
+            CanvasToolMode.PENCIL -> _pencilColor.value = color
+            CanvasToolMode.HIGHLIGHTER -> _highlighterColor.value = color
+            else -> _penColor.value = color
+        }
+    }
+
+    fun getColorForTool(mode: CanvasToolMode): Int {
+        return when (mode) {
+            CanvasToolMode.PEN -> _penColor.value
+            CanvasToolMode.PENCIL -> _pencilColor.value
+            CanvasToolMode.HIGHLIGHTER -> _highlighterColor.value
+            else -> _penColor.value
         }
     }
 
