@@ -20,11 +20,15 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
     implementation(project(":core"))
     implementation(project(":document"))
+    implementation(project(":drawing"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)

@@ -83,9 +83,9 @@ fun NotebookSettingsModal(
     val paperColorSwatches = listOf(
         Pair("Warm Cream", AndroidColor.parseColor("#FAF8F5")),
         Pair("Legal Yellow", AndroidColor.parseColor("#FFF9E6")),
-        Pair("Soft Mint", AndroidColor.parseColor("#EAF4EC")),
-        Pair("Pastel Pink", AndroidColor.parseColor("#FCE4EC")),
-        Pair("Lavender", AndroidColor.parseColor("#F5F3FF")),
+        Pair("Soft Mint", AndroidColor.parseColor("#E8F5E9")),
+        Pair("Pastel Pink", AndroidColor.parseColor("#FFE4E6")),
+        Pair("Lavender", AndroidColor.parseColor("#F3E8FF")),
         Pair("Cool Gray", AndroidColor.parseColor("#F0F2F5")),
         Pair("Charcoal", AndroidColor.parseColor("#1C1C1E")),
         Pair("Pure White", AndroidColor.parseColor("#FFFFFF"))

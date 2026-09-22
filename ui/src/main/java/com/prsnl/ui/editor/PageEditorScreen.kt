@@ -128,7 +128,7 @@ fun PageEditorScreen(
     ) { uri: Uri? ->
         if (uri != null && pagesList.isNotEmpty()) {
             val tempFile = File(context.cacheDir, "export_${UUID.randomUUID()}.pdf")
-            val success = PdfExporter().exportPagesToPdf(pagesList, tempFile)
+            val success = PdfExporter().exportPagesToPdf(pagesList, tempFile, context)
             if (success) {
                 try {
                     context.contentResolver.openOutputStream(uri)?.use { output ->

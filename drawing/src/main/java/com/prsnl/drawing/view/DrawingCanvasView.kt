@@ -62,6 +62,10 @@ class DrawingCanvasView @JvmOverloads constructor(
                 lassoSelectedElements.clear()
                 onSelectionChanged?.invoke(false)
             }
+            if (value != CanvasToolMode.STROKE_ERASER && value != CanvasToolMode.PIXEL_ERASER) {
+                eraserHoverPoint = null
+                eraserTouchPoint = null
+            }
             invalidate()
         }
 
@@ -120,6 +124,30 @@ class DrawingCanvasView @JvmOverloads constructor(
     private val localElementsList = mutableListOf<Element>()
     private var activeStroke: ActiveStroke? = null
     private var eraserTouchPoint: Pair<Float, Float>? = null
+    private var eraserHoverPoint: Pair<Float, Float>? = null
+
+    private val eraserCursorFillPaint = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.FILL
+        color = 0x22EF4444.toInt() // Soft coral fill
+    }
+    private val eraserCursorOuterStroke = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = 2.5f
+        color = 0x66000000.toInt() // High-contrast dark halo
+    }
+    private val eraserCursorInnerStroke = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = 1.5f
+        color = 0xFFEF4444.toInt() // Vibrant coral reticle ring
+    }
+    private val eraserCursorCenterPaint = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.FILL
+        color = 0xFFEF4444.toInt()
+    }
 
     // Lasso & Selection State
     private val lassoPoints = mutableListOf<StrokePoint>()
@@ -854,6 +882,7 @@ class DrawingCanvasView @JvmOverloads constructor(
         when (action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                 eraserTouchPoint = Pair(p.x, p.y)
+                eraserHoverPoint = Pair(p.x, p.y)
                 val snapshot = synchronized(localElementsList) { localElementsList.toList() }
                 val mode = if (currentToolMode == CanvasToolMode.STROKE_ERASER) EraserMode.STROKE_ERASER else EraserMode.PIXEL_ERASER
                 val eraseCommand = eraserEngine.eraseAt(snapshot, p.x, p.y, eraserRadius, mode)
@@ -874,9 +903,35 @@ class DrawingCanvasView @JvmOverloads constructor(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 inputFilter.onPointerUpOrCancel(event, safeIndex)
                 eraserTouchPoint = null
+                eraserHoverPoint = null
                 invalidate()
             }
         }
+    }
+
+    override fun onHoverEvent(event: MotionEvent): Boolean {
+        val isEraser = currentToolMode == CanvasToolMode.PIXEL_ERASER || currentToolMode == CanvasToolMode.STROKE_ERASER
+        if (isEraser) {
+            when (event.actionMasked) {
+                MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+                    val (cx, cy) = screenToCanvas(event.x, event.y)
+                    eraserHoverPoint = Pair(cx, cy)
+                    invalidate()
+                    return true
+                }
+                MotionEvent.ACTION_HOVER_EXIT -> {
+                    eraserHoverPoint = null
+                    invalidate()
+                    return true
+                }
+            }
+        } else {
+            if (eraserHoverPoint != null) {
+                eraserHoverPoint = null
+                invalidate()
+            }
+        }
+        return super.onHoverEvent(event)
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -964,8 +1019,29 @@ class DrawingCanvasView @JvmOverloads constructor(
                 postInvalidateOnAnimation()
             }
 
+            // Render active eraser cursor / reticle under stylus tip or during hover
+            val isEraser = currentToolMode == CanvasToolMode.PIXEL_ERASER || currentToolMode == CanvasToolMode.STROKE_ERASER
+            val hoverPt = eraserHoverPoint ?: eraserTouchPoint
+            if (isEraser && hoverPt != null) {
+                drawEraserCursor(canvas, hoverPt.first, hoverPt.second, eraserRadius)
+            }
+
             canvas.restore()
         } catch (_: Exception) {}
+    }
+
+    private fun drawEraserCursor(canvas: Canvas, cx: Float, cy: Float, radius: Float) {
+        canvas.drawCircle(cx, cy, radius, eraserCursorFillPaint)
+        canvas.drawCircle(cx, cy, radius, eraserCursorOuterStroke)
+        canvas.drawCircle(cx, cy, radius, eraserCursorInnerStroke)
+        canvas.drawCircle(cx, cy, 2.5f, eraserCursorCenterPaint)
+
+        // Precision crosshair tick marks extending from perimeter
+        val tick = 4f
+        canvas.drawLine(cx, cy - radius - tick, cx, cy - radius + 1f, eraserCursorInnerStroke)
+        canvas.drawLine(cx, cy + radius - 1f, cx, cy + radius + tick, eraserCursorInnerStroke)
+        canvas.drawLine(cx - radius - tick, cy, cx - radius + 1f, cy, eraserCursorInnerStroke)
+        canvas.drawLine(cx + radius - 1f, cy, cx + radius + tick, cy, eraserCursorInnerStroke)
     }
 
     private fun extractPointSafely(event: MotionEvent, index: Int, startTime: Long): StrokePoint? {

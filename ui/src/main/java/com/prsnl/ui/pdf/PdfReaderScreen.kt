@@ -178,7 +178,7 @@ fun PdfReaderScreen(
                                     isExporting = true
                                     val exportFile = File(context.cacheDir, "annotated_${UUID.randomUUID()}.pdf")
                                     val exporter = PdfExporter()
-                                    val success = exporter.exportPagesToPdf(pages, exportFile)
+                                    val success = exporter.exportPagesToPdf(pages, exportFile, context)
                                     isExporting = false
                                     if (success) {
                                         Toast.makeText(context, "Exported PDF: ${exportFile.name}", Toast.LENGTH_LONG).show()

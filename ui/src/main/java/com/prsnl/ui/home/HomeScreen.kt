@@ -12,6 +12,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import com.prsnl.core.user.UserProfileManager
+import com.prsnl.ui.common.TypewriterText
+import com.prsnl.ui.folder.CreateNotebookFullModal
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -101,10 +104,16 @@ fun HomeScreen(
     val dbFolders by viewModel.folders.collectAsState()
     val entitlement by viewModel.entitlement.collectAsState()
 
+    val context = LocalContext.current
+    val userProfileManager = remember { UserProfileManager.getInstance(context) }
+    val currentUserName by userProfileManager.userName.collectAsState()
+    val isWelcomeCompleted by userProfileManager.isWelcomeCompleted.collectAsState()
+    var showWelcomeModal by remember { mutableStateOf(!userProfileManager.isWelcomeCompleted()) }
+    var showCreateNotebookDialog by remember { mutableStateOf(false) }
+
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var selectedFolderForMenu by remember { mutableStateOf<Folder?>(null) }
     var searchQuery by remember { mutableStateOf("") }
-    val context = LocalContext.current
 
     var crashLogText by remember { mutableStateOf(com.prsnl.core.log.CrashLogger.getLatestCrashLog(context)) }
     var showCrashLogModal by remember { mutableStateOf(false) }
@@ -170,16 +179,15 @@ fun HomeScreen(
                             }
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "prsnl",
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 24.sp,
-                                        color = Color(0xFF2D2B28)
-                                    )
-                                }
+                                val greeting = if (currentUserName.isNotBlank()) "Welcome, $currentUserName" else "Welcome, Boss"
+                                TypewriterText(
+                                    text = greeting,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFF2D2B28)
+                                )
                                 Text(
-                                    text = "Folders & Document Storage",
+                                    text = "Personal Notebooks & Workspace",
                                     fontSize = 12.sp,
                                     color = Color(0xFF5C5850)
                                 )
@@ -374,22 +382,90 @@ fun HomeScreen(
                     ) { foldersToRender ->
                         if (foldersToRender.isEmpty()) {
                             Box(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        Icons.Default.Create,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(56.dp),
-                                        tint = Color(0xFF8E887E)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.9f)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color(0xFFF5F0E6))
+                                        .border(1.dp, Color(0xFFE2D7C5), RoundedCornerShape(20.dp))
+                                        .padding(horizontal = 24.dp, vertical = 32.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(60.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(Color(0xFFEAE3D2))
+                                            .border(1.5.dp, Color(0xFFC88A4B), RoundedCornerShape(14.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Create,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(30.dp),
+                                            tint = Color(0xFFC88A4B)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
                                     Text(
-                                        text = "No folders found.\nTap '+ New Folder' to create one!",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = Color(0xFF5C5850)
+                                        text = "Your Workspace is Empty",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2D2B28),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = "Create folders and notebooks to organize your handwritten notes and documents.",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF5C5850),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        lineHeight = 18.sp
+                                    )
+
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        androidx.compose.material3.Button(
+                                            onClick = { showCreateNotebookDialog = true },
+                                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFFC88A4B),
+                                                contentColor = Color.White
+                                            ),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.height(44.dp)
+                                        ) {
+                                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Create Notebook", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        }
+
+                                        androidx.compose.material3.OutlinedButton(
+                                            onClick = { showCreateFolderDialog = true },
+                                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                                contentColor = Color(0xFF8B5E3C)
+                                            ),
+                                            border = BorderStroke(1.dp, Color(0xFFC88A4B)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.height(42.dp)
+                                        ) {
+                                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("New Folder", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                        }
+                                    }
                                 }
                             }
                         } else {
@@ -429,6 +505,44 @@ fun HomeScreen(
         }
 
         // Modals & Dialogs
+
+        if (showWelcomeModal && !isWelcomeCompleted) {
+            WelcomeOnboardingModal(
+                onDismiss = {
+                    userProfileManager.setWelcomeCompleted(true)
+                    showWelcomeModal = false
+                },
+                onComplete = { name, initialFolder ->
+                    userProfileManager.saveUserProfile(name, completedWelcome = true)
+                    showWelcomeModal = false
+                    if (!initialFolder.isNullOrBlank()) {
+                        viewModel.createFolder(initialFolder)
+                    }
+                }
+            )
+        }
+
+        if (showCreateNotebookDialog) {
+            CreateNotebookFullModal(
+                folderName = "Personal",
+                onDismiss = { showCreateNotebookDialog = false },
+                onCreate = { title, coverColor, coverStyle, bgType, paperColor ->
+                    viewModel.createNotebook(
+                        title = title,
+                        folderName = "Personal",
+                        coverColor = coverColor,
+                        coverStyle = coverStyle,
+                        backgroundType = bgType,
+                        paperColor = paperColor,
+                        onCreated = { notebookId, _ ->
+                            showCreateNotebookDialog = false
+                            activeToast = ToastMessage("Notebook created successfully", ToastType.SUCCESS)
+                            onNotebookClick(notebookId)
+                        }
+                    )
+                }
+            )
+        }
 
         if (showCreateFolderDialog) {
             CreateFolderDialog(

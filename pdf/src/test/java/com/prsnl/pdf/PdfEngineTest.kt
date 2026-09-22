@@ -2,6 +2,7 @@ package com.prsnl.pdf
 
 import com.prsnl.document.model.Background
 import com.prsnl.document.model.Page
+import com.prsnl.document.model.Shape
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -73,6 +74,64 @@ class PdfEngineTest {
         )
 
         val outputFile = tempFolder.newFile("annotated_export.pdf")
+        val exporter = PdfExporter()
+        val success = exporter.exportPagesToPdf(listOf(page), outputFile)
+
+        assertTrue(success)
+        assertTrue(outputFile.exists())
+        assertTrue(outputFile.length() > 0L)
+    }
+
+    @Test
+    fun testPdfExporterWithShapesAndImages() {
+        val dummyImg = tempFolder.newFile("sample_img.png")
+        dummyImg.writeBytes(byteArrayOf(1, 2, 3, 4))
+
+        val graphShape = Shape(
+            id = "graph1",
+            zIndex = 0,
+            boundingBox = com.prsnl.document.model.RectData(100f, 100f, 400f, 400f),
+            createdAt = System.currentTimeMillis(),
+            type = Shape.Type.AXIS_2D,
+            strokeColor = 0xFF1D4ED8.toInt(),
+            strokeWidth = 3f
+        )
+
+        val triangleShape = Shape(
+            id = "tri1",
+            zIndex = 1,
+            boundingBox = com.prsnl.document.model.RectData(450f, 100f, 650f, 300f),
+            createdAt = System.currentTimeMillis(),
+            type = Shape.Type.TRIANGLE,
+            strokeColor = 0xFFDC2626.toInt(),
+            strokeWidth = 2f,
+            fillColor = 0x33DC2626.toInt()
+        )
+
+        val imageElement = com.prsnl.document.model.ImageElement(
+            id = "img1",
+            zIndex = 2,
+            boundingBox = com.prsnl.document.model.RectData(100f, 500f, 300f, 700f),
+            createdAt = System.currentTimeMillis(),
+            assetPath = dummyImg.absolutePath
+        )
+
+        val page = Page(
+            id = "page_shapes",
+            notebookId = "nb_shapes",
+            index = 0,
+            width = 1200f,
+            height = 1697f,
+            background = Background(
+                type = Background.Type.GRID,
+                lineSpacing = 40f,
+                colorLight = 0xFFFAF8F5.toInt(),
+                colorDark = 0xFF1C1C1E.toInt()
+            ),
+            elements = listOf(graphShape, triangleShape, imageElement)
+        )
+
+        val outputFile = tempFolder.newFile("shapes_export.pdf")
         val exporter = PdfExporter()
         val success = exporter.exportPagesToPdf(listOf(page), outputFile)
 

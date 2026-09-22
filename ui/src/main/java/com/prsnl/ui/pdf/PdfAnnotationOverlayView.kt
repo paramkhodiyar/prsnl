@@ -46,6 +46,13 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
         }
 
     var currentToolMode: CanvasToolMode = CanvasToolMode.PEN
+        set(value) {
+            field = value
+            if (value != CanvasToolMode.STROKE_ERASER && value != CanvasToolMode.PIXEL_ERASER) {
+                eraserCursorPoint = null
+            }
+            invalidate()
+        }
     var selectedColor: Int = Color.BLACK
     var selectedWidth: Float = 4f
     var eraserRadius: Float = 36f
@@ -61,8 +68,32 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
     }
     private val eraserEngine = EraserEngine()
     private var activeStroke: ActiveStroke? = null
+    private var eraserCursorPoint: Pair<Float, Float>? = null
     private var targetPageIndex: Int = 0
     private var strokeStartTime: Long = 0L
+
+    private val eraserCursorFillPaint = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.FILL
+        color = 0x22EF4444.toInt()
+    }
+    private val eraserCursorOuterStroke = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = 2.5f
+        color = 0x66000000.toInt()
+    }
+    private val eraserCursorInnerStroke = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.STROKE
+        strokeWidth = 1.5f
+        color = 0xFFEF4444.toInt()
+    }
+    private val eraserCursorCenterPaint = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.FILL
+        color = 0xFFEF4444.toInt()
+    }
 
     fun getPageRectOnScreen(pageIndex: Int): RectF? {
         val pv = pdfView ?: return null
@@ -113,7 +144,9 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
                 strokeStartTime = System.currentTimeMillis()
 
                 if (isEraserTool) {
+                    eraserCursorPoint = Pair(event.x, event.y)
                     handleErase(targetPageIndex, targetRect, event.x, event.y)
+                    invalidate()
                 } else {
                     val tool = when (currentToolMode) {
                         CanvasToolMode.HIGHLIGHTER -> Stroke.Tool.HIGHLIGHTER
@@ -142,9 +175,11 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
             MotionEvent.ACTION_MOVE -> {
                 val targetRect = getPageRectOnScreen(targetPageIndex)
                 if (isEraserTool) {
+                    eraserCursorPoint = Pair(event.x, event.y)
                     if (targetRect != null) {
                         handleErase(targetPageIndex, targetRect, event.x, event.y)
                     }
+                    invalidate()
                 } else {
                     val stroke = activeStroke ?: return true
                     for (i in 0 until event.historySize) {
@@ -170,7 +205,10 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
                 return true
             }
             MotionEvent.ACTION_UP -> {
-                if (!isEraserTool) {
+                if (isEraserTool) {
+                    eraserCursorPoint = null
+                    invalidate()
+                } else {
                     val stroke = activeStroke
                     val rect = getPageRectOnScreen(targetPageIndex)
                     val page = pages.getOrNull(targetPageIndex)
@@ -178,6 +216,7 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
                     if (stroke != null && stroke.points.isNotEmpty() && rect != null && rect.width() > 0 && rect.height() > 0) {
                         val docWidth = page?.width ?: rect.width()
                         val docHeight = page?.height ?: rect.height()
+
                         val scaleX = docWidth / rect.width()
                         val scaleY = docHeight / rect.height()
 
@@ -217,11 +256,36 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
             }
             MotionEvent.ACTION_CANCEL -> {
                 activeStroke = null
+                eraserCursorPoint = null
                 invalidate()
                 return true
             }
         }
         return pv.dispatchTouchEvent(event)
+    }
+
+    override fun onHoverEvent(event: MotionEvent): Boolean {
+        val isEraserTool = (currentToolMode == CanvasToolMode.STROKE_ERASER || currentToolMode == CanvasToolMode.PIXEL_ERASER)
+        if (isEraserTool) {
+            when (event.actionMasked) {
+                MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+                    eraserCursorPoint = Pair(event.x, event.y)
+                    invalidate()
+                    return true
+                }
+                MotionEvent.ACTION_HOVER_EXIT -> {
+                    eraserCursorPoint = null
+                    invalidate()
+                    return true
+                }
+            }
+        } else {
+            if (eraserCursorPoint != null) {
+                eraserCursorPoint = null
+                invalidate()
+            }
+        }
+        return super.onHoverEvent(event)
     }
 
     private fun handleErase(pageIndex: Int, rect: RectF, screenX: Float, screenY: Float) {
@@ -308,7 +372,30 @@ class PdfAnnotationOverlayView(context: Context) : View(context) {
         }
 
         // 2. Render active in-flight stroke under stylus tip
-        val stroke = activeStroke ?: return
-        strokeRenderer.renderActiveStroke(canvas, stroke)
+        val stroke = activeStroke
+        if (stroke != null) {
+            strokeRenderer.renderActiveStroke(canvas, stroke)
+        }
+
+        // 3. Render active eraser cursor / reticle under stylus tip or during hover
+        val isEraserTool = (currentToolMode == CanvasToolMode.STROKE_ERASER || currentToolMode == CanvasToolMode.PIXEL_ERASER)
+        val cursorPt = eraserCursorPoint
+        if (isEraserTool && cursorPt != null) {
+            drawEraserCursor(canvas, cursorPt.first, cursorPt.second, eraserRadius)
+        }
+    }
+
+    private fun drawEraserCursor(canvas: Canvas, cx: Float, cy: Float, radius: Float) {
+        canvas.drawCircle(cx, cy, radius, eraserCursorFillPaint)
+        canvas.drawCircle(cx, cy, radius, eraserCursorOuterStroke)
+        canvas.drawCircle(cx, cy, radius, eraserCursorInnerStroke)
+        canvas.drawCircle(cx, cy, 2.5f, eraserCursorCenterPaint)
+
+        // Precision crosshair tick marks extending from perimeter
+        val tick = 4f
+        canvas.drawLine(cx, cy - radius - tick, cx, cy - radius + 1f, eraserCursorInnerStroke)
+        canvas.drawLine(cx, cy + radius - 1f, cx, cy + radius + tick, eraserCursorInnerStroke)
+        canvas.drawLine(cx - radius - tick, cy, cx - radius + 1f, cy, eraserCursorInnerStroke)
+        canvas.drawLine(cx + radius - 1f, cy, cx + radius + tick, cy, eraserCursorInnerStroke)
     }
 }

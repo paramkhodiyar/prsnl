@@ -203,22 +203,71 @@ fun FolderDetailScreen(
                     ) { notebooksToRender ->
                         if (notebooksToRender.isEmpty()) {
                             Box(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        Icons.Default.Create,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(56.dp),
-                                        tint = Color(0xFF8E887E)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.9f)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color(0xFFF5F0E6))
+                                        .border(1.dp, Color(0xFFE2D7C5), RoundedCornerShape(20.dp))
+                                        .padding(horizontal = 24.dp, vertical = 32.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(60.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(Color(0xFFEAE3D2))
+                                            .border(1.5.dp, Color(0xFFC88A4B), RoundedCornerShape(14.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Create,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(30.dp),
+                                            tint = Color(0xFFC88A4B)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
                                     Text(
-                                        text = "No notebooks in '$folderName'.\nTap '+ New Notebook' to create one!",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = Color(0xFF5C5850)
+                                        text = "No Notebooks in '$folderName'",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2D2B28),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Text(
+                                        text = "Create a notebook to begin sketching, taking handwritten notes, or marking up documents.",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF5C5850),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        lineHeight = 18.sp
+                                    )
+
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    androidx.compose.material3.Button(
+                                        onClick = { showCreateNotebookDialog = true },
+                                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFFC88A4B),
+                                            contentColor = Color.White
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.height(44.dp)
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Create Notebook", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    }
                                 }
                             }
                         } else {
@@ -530,142 +579,3 @@ fun NotebookContextMenuModal(
     )
 }
 
-@Composable
-fun CreateNotebookFullModal(
-    folderName: String,
-    onDismiss: () -> Unit,
-    onCreate: (title: String, coverColor: Int, coverStyle: String, bgType: Background.Type, paperColor: Int) -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-    var selectedCoverColor by remember { mutableIntStateOf(0xFF8B5E3C.toInt()) }
-    var selectedCoverStyle by remember { mutableStateOf("DEFAULT") }
-    var selectedPaperType by remember { mutableStateOf(Background.Type.MARGIN_RULED) }
-    var selectedPaperColor by remember { mutableIntStateOf(0xFFFAF8F5.toInt()) }
-
-    val coverColors = listOf(
-        0xFF8B5E3C.toInt(),
-        0xFFC88A4B.toInt(),
-        0xFF4C6EF5.toInt(),
-        0xFF4A7C59.toInt(),
-        0xFFC85A32.toInt()
-    )
-
-    val paperColors = listOf(
-        0xFFFAF8F5.toInt(),
-        0xFFFFFDF0.toInt(),
-        0xFFF0F7F4.toInt(),
-        0xFFFDF2F4.toInt(),
-        0xFFF5F3FF.toInt(),
-        0xFFFFFFFF.toInt()
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color(0xFFF5F0E6),
-        titleContentColor = Color(0xFF2D2B28),
-        textContentColor = Color(0xFF2D2B28),
-        title = { Text("Create Notebook in '$folderName'", fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Notebook Name (e.g. Maths, Physics)", color = Color(0xFF5C5850)) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFFC88A4B),
-                        unfocusedBorderColor = Color(0xFFE2D7C5),
-                        focusedTextColor = Color(0xFF2D2B28),
-                        unfocusedTextColor = Color(0xFF2D2B28)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Notebook Topic / Icon", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TOPIC_ICON_OPTIONS.take(4).forEach { (iconKey, labelText) ->
-                        FilterChip(
-                            selected = selectedCoverStyle == iconKey,
-                            onClick = { selectedCoverStyle = iconKey },
-                            label = { Text(labelText, fontSize = 10.sp) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Cover Theme Color", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    coverColors.forEach { c ->
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(c))
-                                .border(if (selectedCoverColor == c) 2.5.dp else 0.dp, Color(0xFFC88A4B), CircleShape)
-                                .clickable { selectedCoverColor = c }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Paper Format", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    FilterChip(
-                        selected = selectedPaperType == Background.Type.MARGIN_RULED,
-                        onClick = { selectedPaperType = Background.Type.MARGIN_RULED },
-                        label = { Text("Margin", fontSize = 10.sp) }
-                    )
-                    FilterChip(
-                        selected = selectedPaperType == Background.Type.RULED,
-                        onClick = { selectedPaperType = Background.Type.RULED },
-                        label = { Text("Ruled", fontSize = 10.sp) }
-                    )
-                    FilterChip(
-                        selected = selectedPaperType == Background.Type.GRID,
-                        onClick = { selectedPaperType = Background.Type.GRID },
-                        label = { Text("Grid", fontSize = 10.sp) }
-                    )
-                    FilterChip(
-                        selected = selectedPaperType == Background.Type.CORNELL,
-                        onClick = { selectedPaperType = Background.Type.CORNELL },
-                        label = { Text("Cornell", fontSize = 10.sp) }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Paper Background Color", fontSize = 11.sp, color = Color(0xFF5C5850), fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    paperColors.forEach { pc ->
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(pc))
-                                .border(if (selectedPaperColor == pc) 2.5.dp else 1.dp, Color(0xFFC88A4B), CircleShape)
-                                .clickable { selectedPaperColor = pc }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (title.isNotBlank()) onCreate(title, selectedCoverColor, selectedCoverStyle, selectedPaperType, selectedPaperColor)
-                }
-            ) {
-                Text("Create Notebook", color = Color(0xFFC88A4B), fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF5C5850))
-            }
-        }
-    )
-}
